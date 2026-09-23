@@ -40,7 +40,20 @@ Contract::Contract(ContractId id, SubscriberId subscriber_id, PlanId plan_id,
 }
 
 void Contract::change_speed_profile(SpeedProfile profile) {
+    if (speed_profile_ == profile) {
+        return;
+    }
     speed_profile_ = std::move(profile);
+    events_.push_back(SpeedProfileChangedEvent{id_});
+}
+
+void Contract::reschedule(std::chrono::year_month_day new_due_date) {
+    if (!is_valid_date(new_due_date) ||
+        std::chrono::sys_days{new_due_date} <= std::chrono::sys_days{billing_start_}) {
+        throw DomainError(
+            "New due date must be a valid calendar date after billing start");
+    }
+    due_date_ = new_due_date;
 }
 
 void Contract::suspend(SuspensionReason reason) {

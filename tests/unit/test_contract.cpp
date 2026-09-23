@@ -206,6 +206,23 @@ TEST(ContractTest, SpeedProfileCanBeChanged) {
     EXPECT_EQ(c.speed_profile(), (SpeedProfile{600, 300}));
 }
 
+TEST(ContractTest, RescheduleUpdatesDueDateKeepingInvariants) {
+    auto c = make_contract();
+
+    c.reschedule(year{2026}/12/1);
+
+    EXPECT_EQ(c.due_date(), year{2026}/12/1);
+    EXPECT_TRUE(sys_days{c.due_date()} > sys_days{c.billing_start()});
+}
+
+TEST(ContractTest, RescheduleRejectsInvalidOrEarlyDueDate) {
+    auto c = make_contract();
+
+    EXPECT_THROW(c.reschedule(year{2026}/9/1), DomainError);
+    EXPECT_THROW(c.reschedule(year{2026}/8/31), DomainError);
+    EXPECT_THROW(c.reschedule(year{0}/month{0}/day{0}), DomainError);
+}
+
 TEST(ContractTest, AccessorsReturnExpectedValues) {
     const auto c = make_contract();
     EXPECT_EQ(c.id(), ContractId{"ct-1"});

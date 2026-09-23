@@ -21,4 +21,8 @@ struct ContractReactivatedEvent {
     ContractId contract_id;
 };
 
+struct SpeedProfileChangedEvent {
+    ContractId contract_id;
+};
+
 }  // namespace inerxia::domain

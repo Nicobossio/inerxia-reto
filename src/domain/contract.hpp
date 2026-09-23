@@ -16,7 +16,7 @@ namespace inerxia::domain {
 
 using ContractEvent =
     std::variant<PaymentRegisteredEvent, ContractSuspendedEvent,
-                 ContractReactivatedEvent>;
+                 ContractReactivatedEvent, SpeedProfileChangedEvent>;
 
 class Contract {
 public:
@@ -44,6 +44,7 @@ public:
     }
 
     void change_speed_profile(SpeedProfile profile);
+    void reschedule(std::chrono::year_month_day new_due_date);
 
     void suspend(SuspensionReason reason);
     void reactivate();

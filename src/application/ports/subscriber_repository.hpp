@@ -1,0 +1,18 @@
+#pragma once
+
+#include <optional>
+
+#include "domain/ids.hpp"
+#include "domain/subscriber.hpp"
+
+namespace inerxia::application {
+
+class SubscriberRepository {
+public:
+    virtual ~SubscriberRepository() = default;
+
+    virtual std::optional<domain::Subscriber> find_by_id(const domain::SubscriberId&) const = 0;
+    virtual void save(const domain::Subscriber&) = 0;
+};
+
+}  // namespace inerxia::application
