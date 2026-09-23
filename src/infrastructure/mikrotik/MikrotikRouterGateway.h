@@ -44,6 +44,7 @@ public:
 
 private:
     [[nodiscard]] std::string speed_string(const domain::SpeedProfile&) const;
+    [[nodiscard]] std::string speed_bps_string(const domain::SpeedProfile&) const;
     [[nodiscard]] std::string suspended_query(const domain::IPAddress&) const;
     [[nodiscard]] std::string queue_path(const domain::IPAddress&) const;
     [[nodiscard]] std::string encode_value(std::string_view) const;

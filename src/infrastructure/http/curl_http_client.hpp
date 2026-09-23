@@ -13,11 +13,6 @@ struct CurlHttpClientConfig {
     int connect_timeout_seconds = 10;
     int request_timeout_seconds = 30;
     bool verify_tls = true;
-
-    // Reads MIKROTIK_BASE_URL, MIKROTIK_USER, MIKROTIK_PASSWORD (required);
-    // MIKROTIK_CONNECT_TIMEOUT_SECONDS (default 10), MIKROTIK_TIMEOUT_SECONDS (default 30),
-    // MIKROTIK_VERIFY_TLS (default true).
-    static CurlHttpClientConfig from_env();
 };
 
 class CurlHttpClient final : public HttpClient {

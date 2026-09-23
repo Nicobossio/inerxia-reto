@@ -3,6 +3,7 @@ set(UNIT_TEST_SOURCES
     test_contract.cpp
     test_contract_rules.cpp
     test_internet_plan.cpp
+    test_mikrotik_env.cpp
     test_mikrotik_router_gateway.cpp
     test_payment.cpp
     test_subscriber.cpp

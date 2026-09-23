@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "domain/domain_error.hpp"
+#include "env_guard.hpp"
 #include "infrastructure/infrastructure_error.hpp"
 #include "infrastructure/mikrotik/MikrotikRouterGateway.h"
 #include "http_fakes.hpp"
@@ -59,7 +60,7 @@ TEST(MikrotikRouterGatewayTest, DisableAddsIpToSuspendedAddressList) {
 
 TEST(MikrotikRouterGatewayTest, DisableIsIdempotentWhenIpAlreadySuspended) {
     FakeHttpClient client{[](const HttpRequest&) {
-        return FakeHttpClient::ok(R"([{".":"*A","list":"suspended","address":"10.20.30.40"}])");
+        return FakeHttpClient::ok(R"([{".id":"*A","list":"suspended","address":"10.20.30.40"}])");
     }};
     MikrotikRouterGateway gateway{client, make_config()};
 
@@ -90,7 +91,7 @@ TEST(MikrotikRouterGatewayTest, DisableUsesConfiguredAddressListName) {
 TEST(MikrotikRouterGatewayTest, EnableRemovesIpFromSuspendedAddressList) {
     FakeHttpClient client{[](const HttpRequest& request) {
         if (request.method == HttpMethod::Get) {
-            return FakeHttpClient::ok(R"([{".":"*A","list":"suspended","address":"10.20.30.40"}])");
+            return FakeHttpClient::ok(R"([{".id":"*A","list":"suspended","address":"10.20.30.40"}])");
         }
         return FakeHttpClient::ok_empty();
     }};
@@ -145,7 +146,7 @@ TEST(MikrotikRouterGatewayTest, ChangeSpeedProfileUpdatesQueueWhenDifferent) {
     FakeHttpClient client{[](const HttpRequest& request) {
         if (request.method == HttpMethod::Get) {
             return FakeHttpClient::ok(
-                R"([{".":"*B","target":"10.20.30.40/32","max-limit":"100M/50M","limit-at":"100M/50M"}])");
+                R"([{".id":"*B","target":"10.20.30.40/32","max-limit":"100000000/50000000","limit-at":"100000000/50000000"}])");
         }
         return FakeHttpClient::ok_empty();
     }};
@@ -165,7 +166,7 @@ TEST(MikrotikRouterGatewayTest, ChangeSpeedProfileUpdatesQueueWhenDifferent) {
 TEST(MikrotikRouterGatewayTest, ChangeSpeedProfileIsNoOpWhenRatesMatch) {
     FakeHttpClient client{[](const HttpRequest&) {
         return FakeHttpClient::ok(
-            R"([{".":"*B","target":"10.20.30.40/32","max-limit":"300M/150M","limit-at":"300M/150M"}])");
+            R"([{".id":"*B","target":"10.20.30.40/32","max-limit":"300000000/150000000","limit-at":"300000000/150000000"}])");
     }};
     MikrotikRouterGateway gateway{client, make_config()};
 
@@ -217,7 +218,7 @@ TEST(MikrotikRouterGatewayTest, EnsureBlockingRuleProvisionsDropRuleOnce) {
 TEST(MikrotikRouterGatewayTest, EnsureBlockingRuleIsIdempotent) {
     FakeHttpClient client{[](const HttpRequest&) {
         return FakeHttpClient::ok(
-            R"([{".":"*C","chain":"forward","action":"drop","src-address-list":"suspended"}])");
+            R"([{".id":"*C","chain":"forward","action":"drop","src-address-list":"suspended"}])");
     }};
     MikrotikRouterGateway gateway{client, make_config()};
 
@@ -226,32 +227,6 @@ TEST(MikrotikRouterGatewayTest, EnsureBlockingRuleIsIdempotent) {
     EXPECT_EQ(client.count(), 1U);
     EXPECT_EQ(client.requests().front().method, HttpMethod::Get);
 }
-
-class EnvGuard {
-public:
-    EnvGuard(const char* name, const char* value) : name_(name) {
-        if (const char* previous = std::getenv(name_)) {
-            saved_ = previous;
-        }
-        if (value == nullptr) {
-            unsetenv(name_);
-        } else {
-            setenv(name_, value, 1);
-        }
-    }
-
-    ~EnvGuard() {
-        if (saved_.has_value()) {
-            setenv(name_, saved_->c_str(), 1);
-        } else {
-            unsetenv(name_);
-        }
-    }
-
-private:
-    const char* name_;
-    std::optional<std::string> saved_;
-};
 
 TEST(MikrotikRouterGatewayTest, RouterOSConfigDefaultsAreUsedWhenEnvUnset) {
     EnvGuard clear_list{"MIKROTIK_SUSPENDED_LIST", nullptr};
@@ -283,7 +258,7 @@ TEST(MikrotikRouterGatewayTest, RouterOSConfigReadsEnvOverrides) {
 
 TEST(MikrotikRouterGatewayTest, GatewayLogsSanitizedLinesWithoutPayloads) {
     const std::string secret_body =
-        std::string(R"([{".":"*T","pwd":")") + kSecret + "\"}]";
+        std::string(R"([{".id":"*T","pwd":")") + kSecret + "\"}]";
     FakeHttpClient client{[&secret_body](const HttpRequest& request) {
         if (request.method == HttpMethod::Get) {
             return FakeHttpClient::ok(R"([])");

@@ -4,7 +4,6 @@
 
 #include <string>
 
-#include "infrastructure/env.hpp"
 #include "infrastructure/infrastructure_error.hpp"
 
 namespace inerxia::infrastructure::http {
@@ -31,19 +30,6 @@ const char* method_as_string(HttpMethod method) {
 }
 
 }  // namespace
-
-CurlHttpClientConfig CurlHttpClientConfig::from_env() {
-    CurlHttpClientConfig config;
-    config.base_url = env_value_required("MIKROTIK_BASE_URL");
-    config.username = env_value_required("MIKROTIK_USER");
-    config.password = env_value_required("MIKROTIK_PASSWORD");
-    config.connect_timeout_seconds =
-        env_positive_int_or("MIKROTIK_CONNECT_TIMEOUT_SECONDS", config.connect_timeout_seconds);
-    config.request_timeout_seconds =
-        env_positive_int_or("MIKROTIK_TIMEOUT_SECONDS", config.request_timeout_seconds);
-    config.verify_tls = env_bool_or("MIKROTIK_VERIFY_TLS", config.verify_tls);
-    return config;
-}
 
 CurlHttpClient::CurlHttpClient(CurlHttpClientConfig config) : config_(std::move(config)) {}
 

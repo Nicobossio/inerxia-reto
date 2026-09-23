@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "infrastructure/http/curl_http_client.hpp"
+#include "infrastructure/mikrotik/MikrotikEnvConfig.h"
 
 namespace inerxia::infrastructure {
 namespace {
@@ -45,9 +46,11 @@ RouterLogSink default_router_log_sink() {
 
 std::unique_ptr<application::RouterGateway> make_mikrotik_router_gateway_from_env(
     RouterLogSink log) {
-    auto http = std::make_unique<http::CurlHttpClient>(http::CurlHttpClientConfig::from_env());
-    auto gateway = std::make_unique<MikrotikRouterGateway>(
-        *http, RouterOSConfig::from_env(), std::move(log));
+    const auto env = MikrotikEnvConfig::from_env();
+    auto http = std::make_unique<http::CurlHttpClient>(env.to_curl_config());
+    auto gateway =
+        std::make_unique<MikrotikRouterGateway>(*http, env.to_router_os_config(),
+                                                std::move(log));
     return std::make_unique<OwnedRouterGateway>(std::move(http), std::move(gateway));
 }
 

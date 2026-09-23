@@ -61,6 +61,13 @@ std::string MikrotikRouterGateway::speed_string(const domain::SpeedProfile& prof
            std::to_string(profile.upload_mbps()) + "M";
 }
 
+// RouterOS reports rates as plain bps ("300000000/150000000"), so comparisons
+// against the wire values must be done in bps too, not in "300M/150M" form.
+std::string MikrotikRouterGateway::speed_bps_string(const domain::SpeedProfile& profile) const {
+    return std::to_string(profile.download_mbps() * 1'000'000) + "/" +
+           std::to_string(profile.upload_mbps() * 1'000'000);
+}
+
 std::string MikrotikRouterGateway::encode_value(std::string_view value) const {
     constexpr std::string_view kUnreserved =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
@@ -97,7 +104,8 @@ std::optional<std::string> MikrotikRouterGateway::find_first_id(
     if (!parsed.is_array() || parsed.empty()) {
         return std::nullopt;
     }
-    const auto id = parsed.front().find(".");
+    // RouterOS exposes every resource id under the ".id" property (e.g. "*A").
+    const auto id = parsed.front().find(".id");
     if (id == parsed.front().end() || !id->is_string()) {
         return std::nullopt;
     }
@@ -162,7 +170,8 @@ void MikrotikRouterGateway::changeSpeedProfile(const domain::ContractId& contrac
     const auto get = send_or_throw({http::HttpMethod::Get, queue_path(ip), std::nullopt},
                                    "changeSpeedProfile lookup");
     const auto id = find_first_id(get);
-    const std::string desired = speed_string(profile);
+    const std::string desired = speed_bps_string(profile);
+    const std::string rate_limit = speed_string(profile);
     const std::string queue_name = config_.queue_prefix + std::string(contract_id.value());
     const std::string queue_comment =
         config_.contract_comment_prefix + std::string(contract_id.value());
@@ -171,8 +180,8 @@ void MikrotikRouterGateway::changeSpeedProfile(const domain::ContractId& contrac
         const json body = {
             {"name", queue_name},
             {"target", ip.value() + "/32"},
-            {"max-limit", desired},
-            {"limit-at", desired},
+            {"max-limit", rate_limit},
+            {"limit-at", rate_limit},
             {"comment", queue_comment},
         };
         send_or_throw({http::HttpMethod::Put, "queue/simple", body.dump()},
@@ -188,8 +197,8 @@ void MikrotikRouterGateway::changeSpeedProfile(const domain::ContractId& contrac
     }
 
     const json patch = {
-        {"max-limit", desired},
-        {"limit-at", desired},
+        {"max-limit", rate_limit},
+        {"limit-at", rate_limit},
     };
     send_or_throw({http::HttpMethod::Patch, "queue/simple/" + *id, patch.dump()},
                   "changeSpeedProfile update-queue");

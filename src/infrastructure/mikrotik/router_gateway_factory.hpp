@@ -11,14 +11,9 @@ namespace inerxia::infrastructure {
 // (method + endpoint + HTTP status, never credentials) to stderr.
 RouterLogSink default_router_log_sink();
 
-// Builds the production MikroTik adapter from environment variables:
-//   MIKROTIK_BASE_URL (required, e.g. https://router:443/rest)
-//   MIKROTIK_USER (required)
-//   MIKROTIK_PASSWORD (required)
-//   MIKROTIK_CONNECT_TIMEOUT_SECONDS (default 10)
-//   MIKROTIK_TIMEOUT_SECONDS (default 30)
-//   MIKROTIK_VERIFY_TLS (default true)
-// plus the RouterOS naming variables documented in RouterOSConfig::from_env().
+// Builds the production MikroTik adapter from environment variables. All variables are
+// documented in MikrotikEnvConfig::from_env(); the three transport variables
+// (MIKROTIK_BASE_URL, MIKROTIK_USER, MIKROTIK_PASSWORD) are required and validated.
 //
 // The returned gateway owns its HTTP transport; it can be injected wherever
 // application::RouterGateway is required.

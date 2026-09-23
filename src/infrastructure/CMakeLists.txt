@@ -12,6 +12,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 add_library(inerxia_infrastructure STATIC
+    mikrotik/MikrotikEnvConfig.cpp
     mikrotik/MikrotikRouterGateway.cpp
 )
 

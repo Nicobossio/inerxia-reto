@@ -12,9 +12,22 @@ compile_commands.json
 # Dependencies (fetched at configure time)
 _deps/
 
-# Env / secrets
+# Env / secrets — real credentials must NEVER enter the repository.
+# `.env.example` (the template) is the only committed exception.
 .env
-.env.local
+.env.*
+!.env.example
+!*.env.example
+.envrc
+*.env
+!*.env.example
+.pgpass
+id_rsa
+id_ed25519
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Python (tooling only)
 __pycache__/
