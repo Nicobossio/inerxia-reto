@@ -15,4 +15,9 @@ public:
     using InfrastructureError::InfrastructureError;
 };
 
+class PostgresError : public InfrastructureError {
+public:
+    using InfrastructureError::InfrastructureError;
+};
+
 }  // namespace inerxia::infrastructure

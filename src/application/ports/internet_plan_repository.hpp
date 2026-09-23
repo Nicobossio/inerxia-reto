@@ -11,6 +11,7 @@ class InternetPlanRepository {
 public:
     virtual ~InternetPlanRepository() = default;
 
+    virtual domain::PlanId next_id() = 0;
     virtual std::optional<domain::InternetPlan> find_by_id(const domain::PlanId&) const = 0;
     virtual void save(const domain::InternetPlan&) = 0;
 };

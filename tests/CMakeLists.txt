@@ -13,4 +13,5 @@ set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_subdirectory(unit)
+add_subdirectory(api)
 add_subdirectory(integration)

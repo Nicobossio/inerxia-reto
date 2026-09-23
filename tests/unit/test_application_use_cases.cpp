@@ -6,8 +6,12 @@
 #include "application/ports/time_provider.hpp"
 #include "application/use_cases/change_speed_profile.hpp"
 #include "application/use_cases/create_contract.hpp"
+#include "application/use_cases/create_plan.hpp"
+#include "application/use_cases/create_subscriber.hpp"
 #include "application/use_cases/evaluate_expired_contracts.hpp"
 #include "application/use_cases/get_contract.hpp"
+#include "application/use_cases/get_plan.hpp"
+#include "application/use_cases/get_subscriber.hpp"
 #include "application/use_cases/reactivate_contract.hpp"
 #include "application/use_cases/register_payment.hpp"
 #include "application/use_cases/suspend_contract.hpp"
@@ -404,6 +408,84 @@ TEST_F(ApplicationUseCaseTest, EvaluateExpiredContractsSkipsContractWithoutSubsc
     auto stored = contracts_.find_by_id(ContractId{"ct-x"});
     ASSERT_TRUE(stored.has_value());
     EXPECT_FALSE(stored->is_suspended());
+}
+
+TEST_F(ApplicationUseCaseTest, CreateSubscriberAssignsIdAndPersists) {
+    CreateSubscriber use_case{subscribers_};
+
+    auto subscriber = use_case(CreateSubscriberCommand{"Ana", IPAddress{"10.1.2.3"}});
+
+    EXPECT_FALSE(subscriber.id().value().empty());
+    EXPECT_EQ(subscriber.name(), "Ana");
+    EXPECT_EQ(subscriber.static_ip(), (IPAddress{"10.1.2.3"}));
+
+    auto stored = subscribers_.find_by_id(subscriber.id());
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_EQ(stored->name(), "Ana");
+}
+
+TEST_F(ApplicationUseCaseTest, CreateSubscriberWithInvalidIpThrowsDomainError) {
+    CreateSubscriber use_case{subscribers_};
+
+    EXPECT_THROW(use_case(CreateSubscriberCommand{"Ana", IPAddress{"999.1.1.1"}}),
+                 domain::DomainError);
+}
+
+TEST_F(ApplicationUseCaseTest, GetSubscriberReturnsStoredSubscriber) {
+    seed_subscriber(SubscriberId{"sub-9"}, IPAddress{"10.1.2.3"});
+
+    GetSubscriber use_case{subscribers_};
+
+    auto subscriber = use_case(SubscriberId{"sub-9"});
+    EXPECT_EQ(subscriber.name(), "Ana");
+    EXPECT_EQ(subscriber.static_ip(), (IPAddress{"10.1.2.3"}));
+}
+
+TEST_F(ApplicationUseCaseTest, GetSubscriberWithUnknownIdThrows) {
+    GetSubscriber use_case{subscribers_};
+
+    EXPECT_THROW(use_case(SubscriberId{"unknown"}), EntityNotFoundError);
+}
+
+TEST_F(ApplicationUseCaseTest, CreatePlanAssignsIdAndPersists) {
+    CreatePlan use_case{plans_};
+
+    auto plan = use_case(CreatePlanCommand{"Fibra 600", SpeedProfile{600, 300},
+                                           Money::from_cents(25000)});
+
+    EXPECT_FALSE(plan.id().value().empty());
+    EXPECT_EQ(plan.name(), "Fibra 600");
+    EXPECT_EQ(plan.speed(), (SpeedProfile{600, 300}));
+    EXPECT_EQ(plan.monthly_price(), Money::from_cents(25000));
+
+    auto stored = plans_.find_by_id(plan.id());
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_EQ(stored->monthly_price(), Money::from_cents(25000));
+}
+
+TEST_F(ApplicationUseCaseTest, CreatePlanWithInvalidSpeedThrowsDomainError) {
+    CreatePlan use_case{plans_};
+
+    EXPECT_THROW(use_case(CreatePlanCommand{"Bad", SpeedProfile{0, 300},
+                                            Money::from_cents(25000)}),
+                 domain::DomainError);
+}
+
+TEST_F(ApplicationUseCaseTest, GetPlanReturnsStoredPlan) {
+    seed_plan(PlanId{"plan-z"}, SpeedProfile{600, 300}, Money::from_cents(25000));
+
+    GetPlan use_case{plans_};
+
+    auto plan = use_case(PlanId{"plan-z"});
+    EXPECT_EQ(plan.name(), "Fibra 300");
+    EXPECT_EQ(plan.speed(), (SpeedProfile{600, 300}));
+    EXPECT_EQ(plan.monthly_price(), Money::from_cents(25000));
+}
+
+TEST_F(ApplicationUseCaseTest, GetPlanWithUnknownIdThrows) {
+    GetPlan use_case{plans_};
+
+    EXPECT_THROW(use_case(PlanId{"unknown"}), EntityNotFoundError);
 }
 
 }  // namespace

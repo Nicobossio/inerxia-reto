@@ -24,6 +24,16 @@ public:
              SpeedProfile speed_profile, std::chrono::year_month_day billing_start,
              std::chrono::year_month_day due_date, Money price_per_period);
 
+    // Reconstruction of a persisted aggregate (no invariants bypassed, no events
+    // emitted). Used by repository implementations to materialize contracts that
+    // carry prior payments and/or a suspension.
+    static Contract rehydrate(ContractId id, SubscriberId subscriber_id, PlanId plan_id,
+                              SpeedProfile speed_profile,
+                              std::chrono::year_month_day billing_start,
+                              std::chrono::year_month_day due_date, Money price_per_period,
+                              std::optional<SuspensionReason> suspended_reason,
+                              std::vector<Payment> payments);
+
     [[nodiscard]] const ContractId& id() const noexcept { return id_; }
     [[nodiscard]] const SubscriberId& subscriber_id() const noexcept {
         return subscriber_id_;
@@ -41,6 +51,12 @@ public:
     [[nodiscard]] Money price_per_period() const noexcept { return price_per_period_; }
     [[nodiscard]] bool is_suspended() const noexcept {
         return suspended_reason_.has_value();
+    }
+    [[nodiscard]] std::optional<SuspensionReason> suspended_reason() const noexcept {
+        return suspended_reason_;
+    }
+    [[nodiscard]] const std::vector<Payment>& payments() const noexcept {
+        return payments_;
     }
 
     void change_speed_profile(SpeedProfile profile);

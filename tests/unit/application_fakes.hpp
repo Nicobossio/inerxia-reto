@@ -29,6 +29,10 @@ private:
 
 class InMemorySubscriberRepository final : public SubscriberRepository {
 public:
+    domain::SubscriberId next_id() override {
+        return domain::SubscriberId{"sub-" + std::to_string(++id_counter_)};
+    }
+
     std::optional<domain::Subscriber> find_by_id(const domain::SubscriberId& id) const override {
         const auto it = subscribers_.find(std::string{id.value()});
         if (it == subscribers_.end()) {
@@ -43,10 +47,15 @@ public:
 
 private:
     std::map<std::string, domain::Subscriber> subscribers_;
+    int id_counter_ = 0;
 };
 
 class InMemoryInternetPlanRepository final : public InternetPlanRepository {
 public:
+    domain::PlanId next_id() override {
+        return domain::PlanId{"plan-" + std::to_string(++id_counter_)};
+    }
+
     std::optional<domain::InternetPlan> find_by_id(const domain::PlanId& id) const override {
         const auto it = plans_.find(std::string{id.value()});
         if (it == plans_.end()) {
@@ -61,6 +70,7 @@ public:
 
 private:
     std::map<std::string, domain::InternetPlan> plans_;
+    int id_counter_ = 0;
 };
 
 class InMemoryContractRepository final : public ContractRepository {

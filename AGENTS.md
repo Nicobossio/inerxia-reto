@@ -112,7 +112,47 @@ ctest --test-dir build -L api
 
 # Local infrastructure
 docker compose up -d
+
+# PostgreSQL integration tests (repositories) — env-gated, skip without these.
+# Tests connect to the `inerxia_test` database (separate from production) unless
+# PGDATABASE is explicitly set.
+export PGUSER=inerxia PGPASSWORD=CHANGE_ME
+ctest --test-dir build -L integration      # postgres_repository_tests runs against inerxia_test
+
+# MikroTik integration tests (live RouterOS) — env-gated too.
+export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
+ctest --test-dir build -L integration      # integration_tests runs against the router
+
+# HTTP API tests (PostgreSQL required; router real if MIKROTIK_* set, otherwise
+# router endpoints assert 503 via a test-only failing gateway).
+export PGUSER=inerxia PGPASSWORD=CHANGE_ME
+ctest --test-dir build -L api
+
+# Run the HTTP API server (fail-fast: requires PostgreSQL + MikroTik credentials).
+export PGUSER=inerxia PGPASSWORD=CHANGE_ME PGDATABASE=inerxia
+export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
+# API_HOST/API_PORT optional (default 127.0.0.1:8484)
+./build/src/api/inerxia_server
 ```
+
+## Design decisions (recorded as required)
+
+- **HTTP framework: cpp-httplib (header-only, yhirose)**, pinned via FetchContent. Picked
+  over Drogon/Pistache/Beast because the challenge asks for a *lightweight* framework: it
+  adds no transport/library dependencies beyond the standard sockets+pthreads and is a
+  single header tree. See `src/api/CMakeLists.txt`.
+- **Controllers never call repositories.** Contacts between HTTP and use cases only.
+  Additional thin application services (`CreateSubscriber`, `GetSubscriber`, `CreatePlan`,
+  `GetPlan`) were added solely so the life-cycle endpoints could be exercised end-to-end;
+  `SubscriberRepository::next_id()` / `InternetPlanRepository::next_id()` follow the same
+  identity pattern as the Contract/Payment repositories.
+- **Composition root is manual DI** (`api::AppServices` + `src/api/main.cpp`), no DI
+  framework. The API server binary fails fast when PostgreSQL or MikroTik credentials are
+  missing.
+- **Router failure semantics**: if RouterOS is unreachable, the affected endpoint answers
+  503 (the domain mutation is persisted first; a retry is safe/idempotent). A failing
+  stand-in gateway (throwing `RouterOSApiError`) exists **only in the API tests**; it never
+  appears in production wiring.
 
 ## Repository conventions
 

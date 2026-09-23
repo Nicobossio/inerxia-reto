@@ -288,6 +288,68 @@ TEST(ContractTest, AutoReactivateEmitsReactivationEvent) {
     EXPECT_TRUE(std::holds_alternative<ContractReactivatedEvent>(events[1]));
 }
 
+TEST(ContractTest, RehydrateRestoresPaymentsAndBalance) {
+    const auto after_due = year_month_day{sys_days{kDueDate} + days{1}};
+    Payment p{PaymentId{"pay-1"}, ContractId{"ct-1"}, Money::from_cents(10000),
+              year{2026}/9/15};
+
+    const auto c =
+        Contract::rehydrate(ContractId{"ct-1"}, SubscriberId{"sub-1"}, PlanId{"plan-1"},
+                            (SpeedProfile{300, 150}), kBillingStart, kDueDate, kPrice,
+                            std::nullopt, std::vector<Payment>{p});
+
+    EXPECT_EQ(c.balance_as_of(after_due), Money::from_cents(5000));
+    EXPECT_FALSE(c.is_suspended());
+    EXPECT_EQ(c.status_as_of(after_due), ContractStatus::Overdue);
+}
+
+TEST(ContractTest, RehydrateRestoresSuspensionWithoutEmittingEvents) {
+    const auto after_due = year_month_day{sys_days{kDueDate} + days{1}};
+
+    auto c =
+        Contract::rehydrate(ContractId{"ct-1"}, SubscriberId{"sub-1"}, PlanId{"plan-1"},
+                            (SpeedProfile{300, 150}), kBillingStart, kDueDate, kPrice,
+                            SuspensionReason::Overdue, std::vector<Payment>{});
+
+    EXPECT_TRUE(c.is_suspended());
+    EXPECT_EQ(c.status_as_of(kBillingStart), ContractStatus::Suspended);
+    EXPECT_TRUE(c.take_events().empty());
+}
+
+TEST(ContractTest, RehydrateStillValidatesCoreInvariants) {
+    EXPECT_THROW(Contract::rehydrate(ContractId{"ct-1"}, SubscriberId{"sub-1"},
+                                     PlanId{"plan-1"}, (SpeedProfile{300, 150}),
+                                     kBillingStart, kBillingStart, kPrice, std::nullopt,
+                                     std::vector<Payment>{}),
+                 DomainError);
+}
+
+TEST(ContractTest, RehydrateRejectsForeignPayment) {
+    Payment foreign{PaymentId{"pay-1"}, ContractId{"otro-ct"}, kPrice, year{2026}/9/15};
+
+    EXPECT_THROW(Contract::rehydrate(ContractId{"ct-1"}, SubscriberId{"sub-1"},
+                                     PlanId{"plan-1"}, (SpeedProfile{300, 150}),
+                                     kBillingStart, kDueDate, kPrice, std::nullopt,
+                                     std::vector<Payment>{foreign}),
+                 DomainError);
+}
+
+TEST(ContractTest, RehydratedContractStillHonoursLifecycle) {
+    const auto after_due = year_month_day{sys_days{kDueDate} + days{1}};
+    auto c = Contract::rehydrate(ContractId{"ct-1"}, SubscriberId{"sub-1"},
+                                 PlanId{"plan-1"}, (SpeedProfile{300, 150}),
+                                 kBillingStart, kDueDate, kPrice, std::nullopt,
+                                 std::vector<Payment>{});
+
+    c.auto_suspend(after_due);
+    EXPECT_TRUE(c.is_suspended());
+
+    c.attach_payment(
+        Payment{PaymentId{"pay-1"}, ContractId{"ct-1"}, kPrice, after_due});
+    EXPECT_FALSE(c.is_suspended());
+    EXPECT_EQ(c.status_as_of(after_due), ContractStatus::Active);
+}
+
 TEST(ContractTest, TakenEventsAreCleared) {
     auto c = make_contract();
     c.suspend(SuspensionReason::Manual);

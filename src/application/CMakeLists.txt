@@ -4,8 +4,12 @@
 add_library(inerxia_application STATIC
     use_cases/change_speed_profile.cpp
     use_cases/create_contract.cpp
+    use_cases/create_plan.cpp
+    use_cases/create_subscriber.cpp
     use_cases/evaluate_expired_contracts.cpp
     use_cases/get_contract.cpp
+    use_cases/get_plan.cpp
+    use_cases/get_subscriber.cpp
     use_cases/reactivate_contract.cpp
     use_cases/register_payment.cpp
     use_cases/suspend_contract.cpp

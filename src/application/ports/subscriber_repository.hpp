@@ -11,6 +11,7 @@ class SubscriberRepository {
 public:
     virtual ~SubscriberRepository() = default;
 
+    virtual domain::SubscriberId next_id() = 0;
     virtual std::optional<domain::Subscriber> find_by_id(const domain::SubscriberId&) const = 0;
     virtual void save(const domain::Subscriber&) = 0;
 };

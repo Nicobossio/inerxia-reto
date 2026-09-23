@@ -1,0 +1,27 @@
+# Local infrastructure. PostgreSQL is the only service required today.
+#   docker compose up -d
+# The init script creates the `inerxia_test` database used exclusively by the
+# repository integration tests (production lives in `inerxia`).
+#
+# Credentials come from the environment (see .env.example); never hardcode them.
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${PGUSER:-inerxia}
+      POSTGRES_PASSWORD: ${PGPASSWORD:?set PGPASSWORD (see .env.example)}
+      POSTGRES_DB: ${PGDATABASE:-inerxia}
+    ports:
+      - "${PGPORT:-5432}:5432"
+    volumes:
+      - inerxia_pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-inerxia} -d ${PGDATABASE:-inerxia}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  inerxia_pgdata:

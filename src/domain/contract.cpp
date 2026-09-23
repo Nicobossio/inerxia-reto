@@ -39,6 +39,24 @@ Contract::Contract(ContractId id, SubscriberId subscriber_id, PlanId plan_id,
     }
 }
 
+Contract Contract::rehydrate(ContractId id, SubscriberId subscriber_id, PlanId plan_id,
+                             SpeedProfile speed_profile,
+                             std::chrono::year_month_day billing_start,
+                             std::chrono::year_month_day due_date, Money price_per_period,
+                             std::optional<SuspensionReason> suspended_reason,
+                             std::vector<Payment> payments) {
+    Contract contract{std::move(id),   std::move(subscriber_id), std::move(plan_id),
+                      std::move(speed_profile), billing_start, due_date, price_per_period};
+    for (const auto& payment : payments) {
+        if (payment.contract_id() != contract.id_) {
+            throw DomainError("Payment must belong to the contract it is attached to");
+        }
+    }
+    contract.payments_ = std::move(payments);
+    contract.suspended_reason_ = suspended_reason;
+    return contract;
+}
+
 void Contract::change_speed_profile(SpeedProfile profile) {
     if (speed_profile_ == profile) {
         return;
