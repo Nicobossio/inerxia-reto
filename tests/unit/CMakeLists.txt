@@ -1,5 +1,13 @@
+set(UNIT_TEST_SOURCES
+    test_contract.cpp
+    test_internet_plan.cpp
+    test_payment.cpp
+    test_subscriber.cpp
+    test_value_objects.cpp
+)
+
 add_executable(unit_tests
-    test_smoke.cpp
+    ${UNIT_TEST_SOURCES}
 )
 
 target_link_libraries(unit_tests
