@@ -20,6 +20,12 @@ El nombre `inerxia.local` se resuelve por la zona `hosts` de Windows
 (`127.0.0.1`): el servidor sigue escuchando en la dirección de `API_HOST`
 (por defecto `127.0.0.1`).
 
+> **Redirección canónica**: con `CANONICAL_DOMAIN=inerxia.local:8484`, acceder a
+> las páginas de navegación (`/`, `/ui`, `/swagger`) por `127.0.0.1`/`localhost`
+> responde `301 Location: http://inerxia.local:8484<ruta>`: el navegador termina
+> siempre en el dominio. Las rutas `/api/*` no se redirigen (curl, scripts y
+> tests conservan su host habitual).
+
 ## 2. Autenticación
 
 Sesión de operador con `Authorization: Bearer <token>`.

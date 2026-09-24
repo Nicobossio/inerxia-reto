@@ -24,6 +24,15 @@ std::string host_from_env() {
     return host != nullptr ? std::string{host} : std::string{"127.0.0.1"};
 }
 
+// CANONICAL_DOMAIN is optional (defaults to disabled). When set
+// (e.g. "inerxia.local:8484"), the human-facing pages redirect (301) any
+// request arriving with a different Host header towards this domain, so the
+// operator always ends up browsing through the domain name. /api/* is exempt.
+std::string canonical_host_from_env() {
+    const char* value = std::getenv("CANONICAL_DOMAIN");
+    return value != nullptr ? std::string{value} : std::string{};
+}
+
 int port_from_env() {
     const char* port = std::getenv("API_PORT");
     if (port == nullptr || *port == '\0') {
@@ -72,7 +81,7 @@ int main() {
         auto router = inerxia::infrastructure::make_mikrotik_router_gateway_from_env();
         inerxia::infrastructure::SystemTimeProvider clock;
         AppServices services{pool, *router, clock};
-        ApiServer server{services, pool};
+        ApiServer server{services, pool, canonical_host_from_env()};
 
         const auto sweep_interval = sweep_interval_from_env();
         inerxia::infrastructure::PeriodicScheduler sweep{

@@ -171,6 +171,7 @@ desactiva el automático, queda el manual `POST /api/sweep/expired`).
 | `MIKROTIK_BASE_URL` / `MIKROTIK_USER` / `MIKROTIK_PASSWORD` | sí (fail-fast) | — |
 | `API_HOST` | no | `127.0.0.1` |
 | `API_PORT` | no | `8484` |
+| `CANONICAL_DOMAIN` | no | (sin redirección) |
 | `SWEEP_INTERVAL_MS` | no | `60000` (0 desactiva) |
 | `AUTH_SESSION_TTL_MS` | no | `43200000` |
 
@@ -184,6 +185,16 @@ ignorado por git).
 `scripts`/Agentes añaden `Add-Content`). Es **resolución de cliente**: el
 servidor escucha en `API_HOST` (loopback), así que `http://inerxia.local:8484`
 abre el panel desde la misma máquina sin exponer puertos.
+
+### Redirección canónica (CG dominio)
+
+Con `CANONICAL_DOMAIN=inerxia.local:8484` el servidor contesta `301` a toda
+petición de las páginas de navegación (`/`, `/ui`, `/swagger`, docs) cuyo
+header `Host` no coincida con ese dominio. Así, si entras por
+`http://127.0.0.1:8484` o `http://localhost:8484`, el navegador salta a
+`http://inerxia.local:8484`: siempre operas con el nombre de dominio. Las rutas
+`/api/*` están exentas, de modo que scripts, `curl` y tests conservan su host
+habitual y no se ven afectados por la redirección.
 
 ## 10. Despliegue paso a paso (Linux/WSL2)
 

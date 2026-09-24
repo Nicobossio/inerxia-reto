@@ -205,6 +205,8 @@ protected:
 
     AppServices& services() const { return *services_; }
 
+    inerxia::infrastructure::postgres::PostgresPool& postgres_pool() const { return *pool_; }
+
     const std::string& username() const noexcept { return username_; }
 
     static nlohmann::json body(const httplib::Result& result) {
@@ -556,6 +558,37 @@ TEST_F(ApiHttpTest, RootRedirectsToDashboard) {
     const auto response = http.Get("/");
     ASSERT_EQ(response->status, 302);
     EXPECT_EQ(response->get_header_value("Location"), "/ui");
+}
+
+TEST_F(ApiHttpTest, CanonicalDomainRedirectsBrowsersToDomain) {
+    ApiServer canonical{services(), postgres_pool(), "inerxia.local:8484"};
+    const int port = canonical.bind_to_any_port();
+    ASSERT_GT(port, 0);
+    std::thread worker{[&canonical] { canonical.listen_after_bind(); }};
+
+    // A request arriving with a plain/loopback Host is bounced to the domain.
+    httplib::Client by_ip{"127.0.0.1", port};
+    by_ip.set_default_headers(
+        httplib::Headers{{"Host", "127.0.0.1:" + std::to_string(port)}});
+    const auto redirected = by_ip.Get("/ui");
+    ASSERT_TRUE(redirected);
+    ASSERT_EQ(redirected->status, 301);
+    EXPECT_EQ(redirected->get_header_value("Location"), "http://inerxia.local:8484/ui");
+
+    // The same path under the canonical host is served normally (no loop).
+    httplib::Client by_domain{"127.0.0.1", port};
+    by_domain.set_default_headers(httplib::Headers{{"Host", "inerxia.local:8484"}});
+    const auto served = by_domain.Get("/ui");
+    ASSERT_TRUE(served);
+    ASSERT_EQ(served->status, 200);
+
+    // API routes are never affected by the canonical redirect.
+    const auto health = by_ip.Get("/api/health");
+    ASSERT_TRUE(health);
+    EXPECT_EQ(health->status, 200);
+
+    canonical.stop();
+    worker.join();
 }
 
 // ---------------------------------------------------------------------------

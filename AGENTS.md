@@ -136,6 +136,10 @@ ctest --test-dir build -L api
 export PGUSER=inerxia PGPASSWORD=CHANGE_ME PGDATABASE=inerxia
 export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
 # API_HOST/API_PORT optional (default 127.0.0.1:8484).
+# CANONICAL_DOMAIN optional (default unset). When set (e.g. inerxia.local:8484)
+# the browser-facing pages (/, /ui, /swagger) answer 301 to that host whenever
+# the request Host differs, so the operator always browses via the domain name;
+# /api/* is exempt, keeping curl/scripts/tests on their plain host.
 # Local domain: `inerxia.local` maps to 127.0.0.1 in the Windows hosts file
 # (added via an elevated PowerShell; consult `# inerxia.local`). Open the
 # dashboard at http://inerxia.local:8484 — resolution is client-side only,
@@ -238,6 +242,12 @@ export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
   Ciclo de vida table — every subscriber's current contract and state
   (activo/vencido/suspendido) so the operator sees who renews and who cancels.
   Read-model only; the route is registered before the `{id}` capture.
+- **Canonical domain redirect** (`CANONICAL_DOMAIN` env, `ApiServer::redirect_to_canonical`):
+  the operator always browses the dashboard through the domain name. When set
+  (e.g. `inerxia.local:8484`), the human-facing pages (/, /ui, /swagger) answer
+  301 to that host whenever the request `Host` differs; `/api/*` is exempt so
+  curl/scripts/tests keep their plain host. Off by default, so tests are
+  unaffected. Documented in docs/INFRASTRUCTURE.md §9.
 
 ## Repository conventions
 

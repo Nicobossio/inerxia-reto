@@ -29,9 +29,15 @@ namespace inerxia::api {
 //     (POST /api/auth/login), both public.
 //   * change audit (post-routing): each mutating /api/* request is recorded
 //     with its actor, method, path and status before the response is written.
+//   * canonical redirect (optional): when a canonical host is configured
+//     (CANONICAL_DOMAIN), requests to the human-facing routes (/, /ui, /swagger,
+//     docs) that arrive with a different Host header are answered with a 301 to
+//     the canonical domain. /api/* is exempt so API clients and tests keep their
+//     plain host behaviour.
 class ApiServer {
 public:
-    ApiServer(AppServices& services, infrastructure::postgres::PostgresPool& pool);
+    ApiServer(AppServices& services, infrastructure::postgres::PostgresPool& pool,
+              std::string canonical_host = {});
 
     ApiServer(const ApiServer&) = delete;
     ApiServer& operator=(const ApiServer&) = delete;
@@ -49,8 +55,13 @@ private:
     httplib::Server::HandlerResponse pre_routing(const httplib::Request&, httplib::Response&);
     void post_routing(const httplib::Request&, httplib::Response&);
     bool is_public_path(const httplib::Request&) const;
+    // Short-circuits non-/api requests with a mismatched Host header into a 301
+    // towards the configured canonical domain. Returns false when configured
+    // canonical_host_ is empty, the Host matches, or the path is an API route.
+    bool redirect_to_canonical(const httplib::Request&, httplib::Response&) const;
 
     httplib::Server server_;
+    std::string canonical_host_;
     infrastructure::postgres::PostgresUserRepository user_repository_;
     infrastructure::auth::OpenSslPbkdf2Hasher password_hasher_;
     infrastructure::auth::InMemorySessionStore session_store_;

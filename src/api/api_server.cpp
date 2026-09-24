@@ -51,8 +51,10 @@ std::string audit_detail(const httplib::Request& request) {
 
 }  // namespace
 
-ApiServer::ApiServer(AppServices& services, infrastructure::postgres::PostgresPool& pool)
-    : user_repository_{pool},
+ApiServer::ApiServer(AppServices& services, infrastructure::postgres::PostgresPool& pool,
+                     std::string canonical_host)
+    : canonical_host_{std::move(canonical_host)},
+      user_repository_{pool},
       auth_service_{user_repository_, password_hasher_, session_store_,
                     session_ttl_from_env()},
       audit_{pool},
@@ -67,9 +69,9 @@ ApiServer::ApiServer(AppServices& services, infrastructure::postgres::PostgresPo
                            services.suspend_contract,
                            services.reactivate_contract,
                            services.change_speed_profile,
-services.register_payment,
-                            services.evaluate_expired_contracts,
-                            services.list_contracts},
+                           services.register_payment,
+                           services.evaluate_expired_contracts,
+                           services.list_contracts},
       health_controller_{pool} {
     server_.set_pre_routing_handler([this](const httplib::Request& request,
                                            httplib::Response& response) {
@@ -106,8 +108,11 @@ void ApiServer::stop() {
 }
 
 httplib::Server::HandlerResponse ApiServer::pre_routing(const httplib::Request& request,
-                                                        httplib::Response& response) {
+                                                         httplib::Response& response) {
     response.set_header(std::string{kActorHeader}, "anonymous");
+    if (redirect_to_canonical(request, response)) {
+        return httplib::Server::HandlerResponse::Handled;
+    }
     if (is_public_path(request)) {
         return httplib::Server::HandlerResponse::Unhandled;
     }
@@ -128,6 +133,19 @@ bool ApiServer::is_public_path(const httplib::Request& request) const {
     return request.path == "/api/openapi.json" || request.path == "/api/health" ||
            request.path == "/api/auth/register" || request.path == "/api/auth/login" ||
            request.path == "/api/auth/logout";
+}
+
+bool ApiServer::redirect_to_canonical(const httplib::Request& request,
+                                      httplib::Response& response) const {
+    if (canonical_host_.empty() || request.path.rfind("/api/", 0) == 0) {
+        return false;
+    }
+    if (request.get_header_value("Host") == canonical_host_) {
+        return false;
+    }
+    response.status = 301;
+    response.set_header("Location", "http://" + canonical_host_ + request.target);
+    return true;
 }
 
 void ApiServer::post_routing(const httplib::Request& request, httplib::Response& response) {
