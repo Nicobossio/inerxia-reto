@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <optional>
 
 #include "application/ports/contract_repository.hpp"
 #include "application/ports/payment_repository.hpp"
@@ -26,6 +27,12 @@ public:
     domain::Payment operator()(const RegisterPaymentCommand&) const;
 
 private:
+    // Returns the already-registered payment when one with the same content
+    // (contract, amount, paid_on) exists on the aggregate.
+    [[nodiscard]] std::optional<domain::Payment> find_duplicate(
+        const domain::Contract&, const domain::Money&,
+        std::chrono::year_month_day paid_on) const;
+
     ContractRepository& contracts_;
     PaymentRepository& payments_;
     SubscriberRepository& subscribers_;

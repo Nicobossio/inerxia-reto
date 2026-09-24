@@ -188,4 +188,55 @@ private:
     int attempts_ = 0;
 };
 
+// Router fake for retry/reconciliation semantics: fails the first N calls with
+// a runtime error (standing in for a transient RouterOS outage), then records
+// succeeding calls. Deliberately separate from ThrowingRouterGateway so a test
+// can express "fails once, then recovers".
+class FlakyRouterGateway final : public RouterGateway {
+public:
+    explicit FlakyRouterGateway(int failures_to_inject)
+        : remaining_failures_(failures_to_inject) {}
+
+    void enableUser(const domain::ContractId&, const domain::IPAddress& ip) override {
+        ++enable_attempts_;
+        maybe_fail();
+        enable_ips_.push_back(ip.value());
+    }
+
+    void disableUser(const domain::ContractId&, const domain::IPAddress& ip) override {
+        ++disable_attempts_;
+        maybe_fail();
+        disable_ips_.push_back(ip.value());
+    }
+
+    void changeSpeedProfile(const domain::ContractId&, const domain::IPAddress& ip,
+                            const domain::SpeedProfile&) override {
+        ++speed_attempts_;
+        maybe_fail();
+        speed_ips_.push_back(ip.value());
+    }
+
+    int enable_attempts() const noexcept { return enable_attempts_; }
+    int disable_attempts() const noexcept { return disable_attempts_; }
+    int total_attempts() const noexcept {
+        return enable_attempts_ + disable_attempts_ + speed_attempts_;
+    }
+
+private:
+    void maybe_fail() {
+        if (remaining_failures_ > 0) {
+            --remaining_failures_;
+            throw std::runtime_error("router unavailable (flaky test fake)");
+        }
+    }
+
+    int remaining_failures_;
+    int enable_attempts_ = 0;
+    int disable_attempts_ = 0;
+    int speed_attempts_ = 0;
+    std::vector<std::string> enable_ips_;
+    std::vector<std::string> disable_ips_;
+    std::vector<std::string> speed_ips_;
+};
+
 }  // namespace inerxia::application::test

@@ -120,8 +120,9 @@ http::HttpResponse MikrotikRouterGateway::send_or_throw(const http::HttpRequest&
             request.path + " -> HTTP " + std::to_string(response.status_code));
         if (!response.ok()) {
             throw RouterOSApiError(std::string(operation) +
-                                   ": RouterOS API error (HTTP " +
-                                   std::to_string(response.status_code) + ")");
+                                       ": RouterOS API error (HTTP " +
+                                       std::to_string(response.status_code) + ")",
+                                   response.status_code);
         }
         return response;
     } catch (const std::exception& error) {

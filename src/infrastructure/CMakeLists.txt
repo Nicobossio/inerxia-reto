@@ -4,6 +4,8 @@
 add_library(inerxia_infrastructure STATIC
     mikrotik/MikrotikEnvConfig.cpp
     mikrotik/MikrotikRouterGateway.cpp
+    mikrotik/retrying_router_gateway.cpp
+    scheduler/periodic_scheduler.cpp
 )
 
 target_include_directories(inerxia_infrastructure PUBLIC ${PROJECT_SOURCE_DIR}/src)

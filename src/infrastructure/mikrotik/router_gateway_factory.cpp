@@ -5,6 +5,7 @@
 
 #include "infrastructure/http/curl_http_client.hpp"
 #include "infrastructure/mikrotik/MikrotikEnvConfig.h"
+#include "infrastructure/mikrotik/retrying_router_gateway.hpp"
 
 namespace inerxia::infrastructure {
 namespace {
@@ -51,7 +52,16 @@ std::unique_ptr<application::RouterGateway> make_mikrotik_router_gateway_from_en
     auto gateway =
         std::make_unique<MikrotikRouterGateway>(*http, env.to_router_os_config(),
                                                 std::move(log));
-    return std::make_unique<OwnedRouterGateway>(std::move(http), std::move(gateway));
+    auto owner = std::make_unique<OwnedRouterGateway>(std::move(http), std::move(gateway));
+    // Wrap every RouterOS call in a bounded retry loop (MIKROTIK_RETRY_* env).
+    // Transient failures are retried with backoff; permanent ones fail fast. All
+    // RouterGateway operations are idempotent, so retries never duplicate effects.
+    RouterLogSink retry_sink = [](std::string_view line) {
+        std::fprintf(stderr, "[mikrotik-retry] %.*s\n", static_cast<int>(line.size()),
+                     line.data());
+    };
+    return std::make_unique<RetryingRouterGateway>(std::move(owner), RetryPolicy::from_env(),
+                                                   std::move(retry_sink));
 }
 
 }  // namespace inerxia::infrastructure

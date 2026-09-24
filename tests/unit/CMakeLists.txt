@@ -6,7 +6,9 @@ set(UNIT_TEST_SOURCES
     test_mikrotik_env.cpp
     test_mikrotik_router_gateway.cpp
     test_payment.cpp
+    test_periodic_scheduler.cpp
     test_pg_utils.cpp
+    test_retrying_router_gateway.cpp
     test_subscriber.cpp
     test_value_objects.cpp
 )

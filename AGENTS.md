@@ -121,6 +121,10 @@ ctest --test-dir build -L integration      # postgres_repository_tests runs agai
 
 # MikroTik integration tests (live RouterOS) — env-gated too.
 export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
+# Optional MikroTik retry policy (defaults shown):
+#   MIKROTIK_RETRY_MAX=3 MIKROTIK_RETRY_BACKOFF_MS=250
+#   MIKROTIK_RETRY_MAX_BACKOFF_MS=2000 MIKROTIK_RETRY_MULTIPLIER=2
+#   (MIKROTIK_RETRY_MAX=1 disables retrying)
 ctest --test-dir build -L integration      # integration_tests runs against the router
 
 # HTTP API tests (PostgreSQL required; router real if MIKROTIK_* set, otherwise
@@ -132,6 +136,7 @@ ctest --test-dir build -L api
 export PGUSER=inerxia PGPASSWORD=CHANGE_ME PGDATABASE=inerxia
 export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
 # API_HOST/API_PORT optional (default 127.0.0.1:8484)
+# SWEEP_INTERVAL_MS optional (default 60000; 0 disables the automatic sweep)
 ./build/src/api/inerxia_server
 # API docs (no extra service): GET /swagger -> Swagger UI (CDN assets),
 # GET /api/openapi.json -> embedded OpenAPI 3.0 spec (src/api/openapi.json)
@@ -155,11 +160,38 @@ export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
   503 (the domain mutation is persisted first; a retry is safe/idempotent). A failing
   stand-in gateway (throwing `RouterOSApiError`) exists **only in the API tests**; it never
   appears in production wiring.
+- **Payment registration is idempotent by content**: `RegisterPayment` treats an
+  identical `(contract_id, amount, paid_on)` as a duplicate and returns the already
+  registered payment without crediting twice. This makes retries after a router failure
+  safe (the mutation is persisted before `enableUser()`; on a duplicate the use case
+  re-asserts `enableUser()` when the contract settled, converging PostgreSQL (active)
+  with MikroTik (disabled) after a transient outage). A partial payment on a suspended
+  contract does not reactivate it (debt not cleared) and never touches the router.
 - **API documentation is static content served by the API layer** (`DocsController`):
   `GET /api/openapi.json` returns the OpenAPI 3.0 spec embedded into the binary at build
   time from `src/api/openapi.json` (via `configure_file`), and `GET /swagger` serves a
   Swagger UI shell that loads its assets from CDN client-side. No architecture change:
   documentation carries no business state and adds no server-side dependencies.
+- **Router retry strategy is a decorator, not a queue** (`RetryingRouterGateway` in
+  `src/infrastructure/mikrotik/`): it wraps any `RouterGateway`, so HTTP calls and the
+  automatic sweep get the same policy with no changes to domain/application code. Bounded
+  retries with configurable exponential backoff (`RetryPolicy`, env `MIKROTIK_RETRY_*`;
+  `MIKROTIK_RETRY_MAX=1` disables). Only transient failures are retried — transport errors
+  (connection refused, timeout, DNS, i.e. `RouterOSApiError` without HTTP status) and
+  HTTP 408/429/5xx; permanent 4xx fails fast. All `RouterGateway` operations are
+  idempotent on the router, so re-issuing the same command never duplicates effects.
+  Sleep is injectable for tests; exhausted retries rethrow so the 503 mapping is unchanged.
+- **Automatic suspension scheduler is std-only infrastructure** (`PeriodicScheduler` in
+  `src/infrastructure/scheduler/`): a worker `std::thread` + `condition_variable`, no
+  external queue. Interval configured via `SWEEP_INTERVAL_MS` (default 60000, `0`
+  disables; `POST /api/sweep/expired` remains available). Design guarantees: first run
+  immediately, then one interval after each completed run (overruns not queued), job
+  never runs concurrently (`run_mutex_` serializes the loop against a manual
+  `run_once()`), exceptions are logged via a `SchedulerLogSink` and the loop continues,
+  and `stop()` joins the worker so SIGINT/SIGTERM (a watchdog thread in `main.cpp`
+  turns the signal flag into `server.stop()` + `sweep.stop()`) shutdowns gracefully
+  without ever blocking the HTTP thread. Logging follows the existing stderr-sink
+  convention used by the MikroTik adapter.
 
 ## Repository conventions
 

@@ -302,6 +302,111 @@ TEST_F(ApplicationUseCaseTest, RegisterPaymentOnUnknownContractThrows) {
                  EntityNotFoundError);
 }
 
+TEST_F(ApplicationUseCaseTest, RegisterPaymentWithNonPositiveAmountThrows) {
+    seed_subscriber();
+    seed_plan();
+    auto contract = create_contract();
+
+    RegisterPayment use_case{contracts_, payments_, subscribers_, router_};
+
+    EXPECT_THROW(use_case(RegisterPaymentCommand{contract.id(), Money::from_cents(0),
+                                                 year{2026}/9/15}),
+                 domain::DomainError);
+    EXPECT_EQ(payments_.saved_count(), 0U);
+    EXPECT_TRUE(router_.calls().empty());
+
+    auto stored = contracts_.find_by_id(contract.id());
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_TRUE(stored->payments().empty());
+}
+
+TEST_F(ApplicationUseCaseTest, RegisterPaymentDuplicateIsIdempotentAndDoesNotDoubleCredit) {
+    seed_subscriber();
+    seed_plan();
+    auto contract = create_contract();
+    clock_.set_today(year{2026}/10/2);
+    EvaluateExpiredContracts evaluator{contracts_, subscribers_, router_, clock_};
+    evaluator();
+    ASSERT_TRUE(contracts_.find_by_id(contract.id())->is_suspended());
+
+    RegisterPayment use_case{contracts_, payments_, subscribers_, router_};
+    const auto first = use_case(
+        RegisterPaymentCommand{contract.id(), Money::from_cents(8000), year{2026}/10/2});
+
+    // Partial payment: debt remains, contract stays suspended, no router enable.
+    EXPECT_TRUE(contracts_.find_by_id(contract.id())->is_suspended());
+    EXPECT_EQ(router_.calls_of(RouterCall::Kind::EnableUser), 0U);
+
+    // Identical registration (same contract, amount, paid_on) is a duplicate:
+    // it must NOT credit a second time.
+    const auto retry = use_case(
+        RegisterPaymentCommand{contract.id(), Money::from_cents(8000), year{2026}/10/2});
+
+    EXPECT_EQ(retry.id(), first.id());
+    EXPECT_EQ(payments_.saved_count(), 1U);
+    auto stored = contracts_.find_by_id(contract.id());
+    ASSERT_TRUE(stored.has_value());
+    ASSERT_EQ(stored->payments().size(), 1U);
+    EXPECT_TRUE(stored->is_suspended());
+    EXPECT_EQ(router_.calls_of(RouterCall::Kind::EnableUser), 0U);
+}
+
+TEST_F(ApplicationUseCaseTest, RegisterPaymentRouterUnavailablePersistsMutationThenThrows) {
+    seed_subscriber();
+    seed_plan();
+    auto contract = create_contract();
+    clock_.set_today(year{2026}/10/2);
+    EvaluateExpiredContracts evaluator{contracts_, subscribers_, router_, clock_};
+    evaluator();
+    ASSERT_TRUE(contracts_.find_by_id(contract.id())->is_suspended());
+
+    ThrowingRouterGateway failing_router;
+    RegisterPayment use_case{contracts_, payments_, subscribers_, failing_router};
+
+    EXPECT_THROW(use_case(RegisterPaymentCommand{contract.id(), kPrice, year{2026}/10/2}),
+                 std::runtime_error);
+    ASSERT_EQ(failing_router.attempts(), 1);
+
+    // The suspension-clearing mutation was persisted BEFORE the router call:
+    // PostgreSQL is the system of record, so the retry must be safe.
+    EXPECT_EQ(payments_.saved_count(), 1U);
+    auto stored = contracts_.find_by_id(contract.id());
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_FALSE(stored->is_suspended());
+    EXPECT_EQ(stored->status_as_of(year{2026}/10/2), ContractStatus::Active);
+}
+
+TEST_F(ApplicationUseCaseTest, RegisterPaymentRetryAfterRouterFailureConverges) {
+    seed_subscriber();
+    seed_plan();
+    auto contract = create_contract();
+    clock_.set_today(year{2026}/10/2);
+    EvaluateExpiredContracts evaluator{contracts_, subscribers_, router_, clock_};
+    evaluator();
+    ASSERT_TRUE(contracts_.find_by_id(contract.id())->is_suspended());
+
+    // Transient outage: the first router call fails, the next one succeeds.
+    FlakyRouterGateway flaky_router{/*failures_to_inject=*/1};
+    RegisterPayment use_case{contracts_, payments_, subscribers_, flaky_router};
+    const RegisterPaymentCommand command{contract.id(), kPrice, year{2026}/10/2};
+
+    EXPECT_THROW(use_case(command), std::runtime_error);
+    EXPECT_EQ(payments_.saved_count(), 1U);
+    EXPECT_EQ(flaky_router.enable_attempts(), 1);
+
+    // Idempotent retry: no double credit, and the router state is re-asserted so
+    // it converges with PostgreSQL (which already records the contract as active).
+    const auto payment = use_case(command);
+    EXPECT_EQ(payment.id(), payments_.saved().front().id());
+    EXPECT_EQ(payments_.saved_count(), 1U);
+    EXPECT_EQ(flaky_router.enable_attempts(), 2);
+
+    auto stored = contracts_.find_by_id(contract.id());
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_FALSE(stored->is_suspended());
+    EXPECT_EQ(stored->status_as_of(year{2026}/10/2), ContractStatus::Active);
+}
+
 TEST_F(ApplicationUseCaseTest, ChangeSpeedProfileUpdatesAndNotifiesRouter) {
     seed_subscriber();
     seed_plan();
