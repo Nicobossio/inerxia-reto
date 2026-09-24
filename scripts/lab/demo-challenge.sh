@@ -31,7 +31,7 @@ fail() { printf '  \033[31mFAIL\033[0m %s\n' "$*"; FAILURES=$((FAILURES + 1)); }
 
 req() { # method path data -> echoes HTTP code, leaves body in $BODY
     curl -s -o "$BODY" -w '%{http_code}' -X "$1" -H 'Content-Type: application/json' \
-        "$BASE$2" ${3:+-d "$3"}
+        ${TOKEN:+-H "Authorization: Bearer $TOKEN"} "$BASE$2" ${3:+-d "$3"}
 }
 
 json() { python3 -c 'import json,sys
@@ -60,6 +60,7 @@ start_server() {
     export PGUSER=${PGUSER:-inerxia} PGPASSWORD=${PGPASSWORD:-inerxia_secret}
     export PGDATABASE=${PGDATABASE:-inerxia} SWEEP_INTERVAL_MS=0
     export MIKROTIK_BASE_URL="$RT" MIKROTIK_USER="$RT_USER" MIKROTIK_PASSWORD="$RT_PASS"
+    export ADMIN_USER=${ADMIN_USER:-} ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     "$ROOT/build/src/api/inerxia_server" >/tmp/inerxia-demo-server.log 2>&1 &
     SRV=$!
     for _ in $(seq 1 50); do
@@ -68,23 +69,39 @@ start_server() {
     done
     return 1
 }
+
+# Optional admin login: when ADMIN_USER/ADMIN_PASSWORD are set the server runs in
+# authenticated mode; obtain a bearer token so req() is authorized. Anonymous
+# servers (no admin configured) answer 403 and TOKEN stays empty.
+login_admin() {
+    [ -n "${ADMIN_USER:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ] || return 0
+    TOKEN=$(
+        curl -s -X POST -H 'Content-Type: application/json' \
+            -d "$(python3 -c 'import os,json;print(json.dumps({"username":os.environ["ADMIN_USER"],"password":os.environ["ADMIN_PASSWORD"]}))')" \
+            "$BASE/api/auth/login" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("token",""))'
+    )
+    [ -n "$TOKEN" ] && log "Autenticado como $ADMIN_USER" || log "Aviso: no se pudo autenticar (servidor anónimo o credenciales erróneas)"
+}
 stop_server() { kill -TERM "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null; return 0; }
 trap stop_server EXIT
 
 if ! curl -sf "$BASE/api/health" >/dev/null; then
+    [ -n "${ADMIN_USER:-}" ] && export ADMIN_USER ADMIN_PASSWORD
     if ! start_server; then
         echo "Could not reach the API at $BASE (server failed to boot; see /tmp/inerxia-demo-server.log)"
         exit 1
     fi
     echo "API server started (pid $SRV)"
 fi
+login_admin
 
 # ---------------------------------------------------------------------------
 log "R1. Plan de Internet asignado a un usuario ISP (subscriber + plan + contrato)"
 CODE=$(req POST /api/subscribers "{\"name\":\"María Demo\",\"static_ip\":\"$IPA\"}")
 [ "$CODE" = "201" ] && SUB=$(json id) || fail "crear subscriber (estado $CODE)"
 CODE=$(curl -s -o "$BODY" -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
-    "$BASE/api/plans" \
+    ${TOKEN:+-H "Authorization: Bearer $TOKEN"} "$BASE/api/plans" \
     -d '{"name":"Fibra 100","download_mbps":100,"upload_mbps":50,"monthly_price_cents":12000}')
 [ "$CODE" = "201" ] && PLAN=$(json id) || fail "crear plan (estado $CODE)"
 CODE=$(req POST /api/contracts "{\"subscriber_id\":\"$SUB\",\"plan_id\":\"$PLAN\",\"billing_start\":\"2026-07-01\",\"due_date\":\"2026-10-31\"}")
@@ -141,6 +158,19 @@ CODE=$(req POST /api/contracts "{\"subscriber_id\":\"$SUB2\",\"plan_id\":\"$PLAN
 log "R8. Reactivación automática tras pago"
 [ "$(req POST /api/contracts/$CTRB/payments '{"amount_cents":12000,"paid_on":"2026-09-22"}')" = "201" ] || fail "pago B no 201"
 [ "$(req GET /api/contracts/$CTRB)" = "200" ] && [ "$(json status)" = "active" ] && sleep 1 && ! router_has_ip "$IPB" && pass "pago → active y MikroTik desbloquea $IPB" || fail "reactivación automática falló"
+
+# ---------------------------------------------------------------------------
+# Admin-only checks (only when the API runs in authenticated mode).
+log "R11. Extras: login de admin, inventario de usuarios y auditoría de cambios"
+if [ -n "${TOKEN:-}" ]; then
+    [ "$(req GET /api/subscribers)" = "200" ] && [ "$(json )" != "[]" ] && pass "inventario devuelve usuarios" || fail "inventario vacío o no disponible"
+    CODE=$(req GET "/api/audit?limit=10")
+    [ "$CODE" = "200" ] && [ "$(json )" != "[]" ] && pass "auditoría registra los cambios del admin" || fail "auditoría no devuelve entradas ($CODE)"
+    [ "$(req POST /api/auth/logout)" = "204" ] && [ "$(req GET /api/audit)" != "200" ] && pass "logout revoca la sesión (401 tras salir)" || fail "logout no revoca la sesión"
+    login_admin
+else
+    echo "  (sin ADMIN_USER/ADMIN_PASSWORD — el servidor corre en modo anónimo; se omiten)"
+fi
 
 # ---------------------------------------------------------------------------
 log "Resumen"
