@@ -3,6 +3,7 @@
 #include <chrono>
 #include <map>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -157,6 +158,34 @@ public:
 
 private:
     std::vector<RouterCall> calls_;
+};
+
+// Router fake for failure semantics: every router operation records an attempt
+// and throws immediately (standing in for an unreachable RouterOS box). Used
+// only in unit tests to prove the domain mutation is persisted before the
+// router call and that a retry never re-attempts the router.
+class ThrowingRouterGateway final : public RouterGateway {
+public:
+    void enableUser(const domain::ContractId&, const domain::IPAddress&) override {
+        ++attempts_;
+        throw std::runtime_error("router unavailable (test fake)");
+    }
+
+    void disableUser(const domain::ContractId&, const domain::IPAddress&) override {
+        ++attempts_;
+        throw std::runtime_error("router unavailable (test fake)");
+    }
+
+    void changeSpeedProfile(const domain::ContractId&, const domain::IPAddress&,
+                            const domain::SpeedProfile&) override {
+        ++attempts_;
+        throw std::runtime_error("router unavailable (test fake)");
+    }
+
+    int attempts() const noexcept { return attempts_; }
+
+private:
+    int attempts_ = 0;
 };
 
 }  // namespace inerxia::application::test

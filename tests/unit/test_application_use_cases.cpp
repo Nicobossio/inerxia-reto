@@ -392,6 +392,97 @@ TEST_F(ApplicationUseCaseTest, EvaluateExpiredContractsIsIdempotentForSuspendedC
     EXPECT_EQ(router_.calls_of(RouterCall::Kind::DisableUser), disabled_after_first);
 }
 
+TEST_F(ApplicationUseCaseTest, EvaluateExpiredContractsLeavesCurrentContractUntouched) {
+    seed_subscriber();
+    seed_plan();
+    // Due on 2026-10-01 while "today" is 2026-09-15: the contract is still
+    // current (active) and must not be suspended.
+    clock_.set_today(year{2026}/9/15);
+    auto contract = create_contract();
+
+    EvaluateExpiredContracts use_case{contracts_, subscribers_, router_, clock_};
+    const auto suspended_ids = use_case();
+
+    EXPECT_TRUE(suspended_ids.empty());
+    EXPECT_TRUE(router_.calls().empty());
+
+    auto stored = contracts_.find_by_id(contract.id());
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_FALSE(stored->is_suspended());
+    EXPECT_EQ(stored->status_as_of(year{2026}/9/15), ContractStatus::Active);
+}
+
+TEST_F(ApplicationUseCaseTest, EvaluateExpiredContractsSkipsOverdueContractWithValidPayment) {
+    seed_subscriber();
+    seed_plan();
+    // Payment registered before the due date and covering the full period: the
+    // contract is overdue by date but has no unpaid balance, so it stays active.
+    auto contract = create_contract();
+    RegisterPayment pay_uc{contracts_, payments_, subscribers_, router_};
+    pay_uc(RegisterPaymentCommand{contract.id(), kPrice, year{2026}/9/15});
+
+    clock_.set_today(year{2026}/10/2);
+    EvaluateExpiredContracts use_case{contracts_, subscribers_, router_, clock_};
+
+    const auto suspended_ids = use_case();
+
+    EXPECT_TRUE(suspended_ids.empty());
+    EXPECT_TRUE(router_.calls_of(RouterCall::Kind::DisableUser) == 0U);
+    auto stored = contracts_.find_by_id(contract.id());
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_EQ(stored->status_as_of(year{2026}/10/2), ContractStatus::Active);
+    EXPECT_FALSE(stored->is_suspended());
+}
+
+TEST_F(ApplicationUseCaseTest, EvaluateExpiredContractsSkipsAlreadySuspendedContract) {
+    seed_subscriber();
+    seed_plan();
+    auto contract = create_contract();
+    // Suspended before the sweep (e.g. manually or by an earlier run).
+    SuspendContract suspend_uc{contracts_, subscribers_, router_};
+    suspend_uc(SuspendContractCommand{contract.id()});
+    const auto disable_calls_before = router_.calls_of(RouterCall::Kind::DisableUser);
+
+    clock_.set_today(year{2026}/10/2);
+    EvaluateExpiredContracts use_case{contracts_, subscribers_, router_, clock_};
+    const auto suspended_ids = use_case();
+
+    EXPECT_TRUE(suspended_ids.empty());
+    // Not re-suspended, so the router is not called a second time.
+    EXPECT_EQ(router_.calls_of(RouterCall::Kind::DisableUser), disable_calls_before);
+
+    auto stored = contracts_.find_by_id(contract.id());
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_TRUE(stored->is_suspended());
+    EXPECT_EQ(stored->status_as_of(year{2026}/10/2), ContractStatus::Suspended);
+}
+
+TEST_F(ApplicationUseCaseTest, EvaluateExpiredContractsRouterFailureKeepsMutationAndRetryIsSafe) {
+    seed_subscriber();
+    seed_plan();
+    auto contract = create_contract();
+
+    ThrowingRouterGateway failing_router;
+    clock_.set_today(year{2026}/10/2);
+    EvaluateExpiredContracts use_case{contracts_, subscribers_, failing_router, clock_};
+
+    // The suspension is persisted BEFORE the router call, so the mutation
+    // survives a router failure; the failure still propagates to the caller.
+    EXPECT_THROW(use_case(), std::runtime_error);
+    EXPECT_EQ(failing_router.attempts(), 1);
+
+    auto stored = contracts_.find_by_id(contract.id());
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_TRUE(stored->is_suspended());
+    EXPECT_EQ(stored->status_as_of(year{2026}/10/2), ContractStatus::Suspended);
+
+    // Idempotence after the failure: the contract is already suspended, so a
+    // retry does not re-attempt the router.
+    const auto second = use_case();
+    EXPECT_TRUE(second.empty());
+    EXPECT_EQ(failing_router.attempts(), 1);
+}
+
 TEST_F(ApplicationUseCaseTest, EvaluateExpiredContractsSkipsContractWithoutSubscriber) {
     seed_plan();
     contracts_.save(Contract{ContractId{"ct-x"}, SubscriberId{"missing"}, PlanId{"plan-1"},

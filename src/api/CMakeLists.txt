@@ -16,15 +16,28 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(cpp_httplib)
 
+# The OpenAPI 3.0 spec (openapi.json) is embedded into the binary as a string
+# resource so the server serves it without touching the filesystem at runtime.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/openapi.json" OPENAPI_SPEC_CONTENT)
+set(OPENAPI_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+file(MAKE_DIRECTORY "${OPENAPI_GENERATED_DIR}/api")
+configure_file(openapi_spec.hpp.in "${OPENAPI_GENERATED_DIR}/api/openapi_spec.hpp" @ONLY)
+# Re-run configure when the spec changes (configure_file only tracks its input
+# template, not the content it was built from).
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/openapi.json"
+)
+
 add_library(inerxia_api STATIC
     api_server.cpp
     contract_controller.cpp
+    docs_controller.cpp
     health_controller.cpp
     plan_controller.cpp
     subscriber_controller.cpp
 )
 
-target_include_directories(inerxia_api PUBLIC ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(inerxia_api PUBLIC ${PROJECT_SOURCE_DIR}/src "${OPENAPI_GENERATED_DIR}")
 target_link_libraries(inerxia_api PUBLIC
     inerxia_application
     nlohmann_json::nlohmann_json

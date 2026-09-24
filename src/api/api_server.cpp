@@ -18,6 +18,7 @@ ApiServer::ApiServer(AppServices& services, infrastructure::postgres::PostgresPo
     plan_controller_.register_routes(server_);
     contract_controller_.register_routes(server_);
     health_controller_.register_routes(server_);
+    docs_controller_.register_routes(server_);
 }
 
 int ApiServer::bind_to_any_port(const std::string& host) {

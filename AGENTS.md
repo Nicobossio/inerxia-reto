@@ -133,6 +133,8 @@ export PGUSER=inerxia PGPASSWORD=CHANGE_ME PGDATABASE=inerxia
 export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
 # API_HOST/API_PORT optional (default 127.0.0.1:8484)
 ./build/src/api/inerxia_server
+# API docs (no extra service): GET /swagger -> Swagger UI (CDN assets),
+# GET /api/openapi.json -> embedded OpenAPI 3.0 spec (src/api/openapi.json)
 ```
 
 ## Design decisions (recorded as required)
@@ -153,6 +155,11 @@ export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
   503 (the domain mutation is persisted first; a retry is safe/idempotent). A failing
   stand-in gateway (throwing `RouterOSApiError`) exists **only in the API tests**; it never
   appears in production wiring.
+- **API documentation is static content served by the API layer** (`DocsController`):
+  `GET /api/openapi.json` returns the OpenAPI 3.0 spec embedded into the binary at build
+  time from `src/api/openapi.json` (via `configure_file`), and `GET /swagger` serves a
+  Swagger UI shell that loads its assets from CDN client-side. No architecture change:
+  documentation carries no business state and adds no server-side dependencies.
 
 ## Repository conventions
 

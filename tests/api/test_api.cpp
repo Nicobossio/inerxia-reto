@@ -441,4 +441,34 @@ TEST_F(ApiHttpTest, HealthReports503WhenDatabaseUnavailable) {
     EXPECT_EQ(body(response).at("error"), "infrastructure");
 }
 
+TEST_F(ApiHttpTest, OpenApiSpecIsServed) {
+    auto http = client();
+    const auto response = http.Get("/api/openapi.json");
+    ASSERT_EQ(response->status, 200);
+    EXPECT_NE(response->get_header_value("Content-Type").find("application/json"),
+              std::string::npos);
+
+    const nlohmann::json spec = nlohmann::json::parse(response->body);
+    EXPECT_EQ(spec.at("openapi").get<std::string>().rfind("3.", 0), 0U);
+    const auto& paths = spec.at("paths");
+    // Every endpoint exercised by the lifecycle tests must be documented.
+    EXPECT_TRUE(paths.contains("/api/contracts"));
+    EXPECT_TRUE(paths.contains("/api/contracts/{id}"));
+    EXPECT_TRUE(paths.contains("/api/contracts/{id}/payments"));
+    EXPECT_TRUE(paths.contains("/api/contracts/{id}/suspend"));
+    EXPECT_TRUE(paths.contains("/api/contracts/{id}/reactivate"));
+    EXPECT_TRUE(paths.contains("/api/contracts/{id}/speed-profile"));
+    EXPECT_TRUE(paths.contains("/api/health"));
+}
+
+TEST_F(ApiHttpTest, SwaggerUiPageIsServed) {
+    auto http = client();
+    const auto response = http.Get("/swagger");
+    ASSERT_EQ(response->status, 200);
+    EXPECT_NE(response->get_header_value("Content-Type").find("text/html"),
+              std::string::npos);
+    EXPECT_NE(response->body.find("swagger-ui"), std::string::npos);
+    EXPECT_NE(response->body.find("/api/openapi.json"), std::string::npos);
+}
+
 }  // namespace

@@ -1,0 +1,14 @@
+#pragma once
+
+#include <string_view>
+
+namespace inerxia::api {
+
+// Generated at configure time from src/api/openapi.json (see CMakeLists.txt).
+// Pure API documentation content served by DocsController — it carries no
+// domain/business state and lives only in the API layer.
+inline constexpr std::string_view kOpenApiSpec = R"openapi(
+@OPENAPI_SPEC_CONTENT@
+)openapi";
+
+}  // namespace inerxia::api

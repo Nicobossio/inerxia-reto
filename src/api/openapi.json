@@ -1,0 +1,598 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Inerxia ISP Billing & Service API",
+    "description": "REST API for the Inerxia founder-engineer challenge: internet-plan contracts, manual payment registration, automatic overdue suspension, reactivation and speed-profile changes. Contract lifecycle is backed by PostgreSQL; router operations run against a live MikroTik RouterOS box.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8484",
+      "description": "Local server (default API_HOST/API_PORT)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "subscribers",
+      "description": "ISP users. A subscriber must exist before its contracts can be created."
+    },
+    {
+      "name": "plans",
+      "description": "Speed/price plans. A plan must exist before contracts can be created."
+    },
+    {
+      "name": "contracts",
+      "description": "Contract lifecycle, payment registration and speed-profile changes."
+    },
+    {
+      "name": "health",
+      "description": "Infrastructure liveness probe."
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Health probe",
+        "description": "Returns 200 when PostgreSQL is reachable; 503 otherwise.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "API and database are healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          },
+          "503": {
+            "description": "PostgreSQL (or the API) is unavailable",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/subscribers": {
+      "post": {
+        "tags": ["subscribers"],
+        "summary": "Create a subscriber",
+        "description": "Creates an ISP user with a static IP address (IPv4). The service assigns the id.",
+        "operationId": "createSubscriber",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubscriberRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Subscriber created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubscriberView" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "422": { "$ref": "#/components/responses/DomainRule" }
+        }
+      }
+    },
+    "/api/subscribers/{id}": {
+      "get": {
+        "tags": ["subscribers"],
+        "summary": "Get a subscriber",
+        "operationId": "getSubscriber",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscriber found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubscriberView" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/plans": {
+      "post": {
+        "tags": ["plans"],
+        "summary": "Create an internet plan",
+        "description": "Creates a speed/price plan. The service assigns the id.",
+        "operationId": "createPlan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PlanRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Plan created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PlanView" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "422": { "$ref": "#/components/responses/DomainRule" }
+        }
+      }
+    },
+    "/api/plans/{id}": {
+      "get": {
+        "tags": ["plans"],
+        "summary": "Get an internet plan",
+        "operationId": "getPlan",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PlanView" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/contracts": {
+      "post": {
+        "tags": ["contracts"],
+        "summary": "Create a contract",
+        "description": "Assigns a plan to a subscriber, snapping the plan's speed and price into the contract, with a billing start date and a due date. The service assigns the id.",
+        "operationId": "createContract",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ContractRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Contract created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ContractView" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/DomainRule" }
+        }
+      }
+    },
+    "/api/contracts/{id}": {
+      "get": {
+        "tags": ["contracts"],
+        "summary": "Get a contract",
+        "description": "Returns the contract aggregate with its computed status (active/overdue/suspended) as of today and its registered payments.",
+        "operationId": "getContract",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contract found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ContractView" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["contracts"],
+        "summary": "Edit a contract (reschedule due date)",
+        "description": "Idempotently reschedules the contract's due date. Contract fields other than the due date are not editable.",
+        "operationId": "updateContract",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RescheduleRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contract updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ContractView" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/DomainRule" }
+        }
+      }
+    },
+    "/api/contracts/{id}/suspend": {
+      "post": {
+        "tags": ["contracts"],
+        "summary": "Suspend a contract",
+        "description": "Manually suspends the contract and disables the subscriber's service on the router.",
+        "operationId": "suspendContract",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contract suspended",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ContractView" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/DomainRule" },
+          "503": { "$ref": "#/components/responses/Infrastructure" }
+        }
+      }
+    },
+    "/api/contracts/{id}/reactivate": {
+      "post": {
+        "tags": ["contracts"],
+        "summary": "Reactivate a contract",
+        "description": "Reactivates a suspended contract and re-enables the subscriber's service on the router.",
+        "operationId": "reactivateContract",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Id" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contract reactivated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ContractView" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/DomainRule" },
+          "503": { "$ref": "#/components/responses/Infrastructure" }
+        }
+      }
+    },
+    "/api/contracts/{id}/payments": {
+      "post": {
+        "tags": ["contracts"],
+        "summary": "Register a payment",
+        "description": "Registers a manual payment for the contract. If the payment clears the debt of an automatically suspended contract, the service is re-enabled on the router.",
+        "operationId": "registerPayment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment registered",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentView" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/DomainRule" },
+          "503": { "$ref": "#/components/responses/Infrastructure" }
+        }
+      }
+    },
+    "/api/contracts/{id}/speed-profile": {
+      "patch": {
+        "tags": ["contracts"],
+        "summary": "Change the subscriber's speed profile",
+        "description": "Updates the contract's download/upload speed and applies the new cap on the router (no-op on the router when the profile is unchanged).",
+        "operationId": "changeSpeedProfile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/Id" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SpeedProfileRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Speed profile updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ContractView" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/DomainRule" },
+          "503": { "$ref": "#/components/responses/Infrastructure" }
+        }
+      }
+    },
+    "/api/sweep/expired": {
+      "post": {
+        "tags": ["contracts"],
+        "summary": "Run the due-date sweep",
+        "description": "Automatically suspends every contract whose due date has passed without payment, disabling those services on the router. Idempotent: already suspended contracts are skipped.",
+        "operationId": "evaluateExpiredContracts",
+        "responses": {
+          "200": {
+            "description": "Sweep finished",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SweepResponse" }
+              }
+            }
+          },
+          "503": { "$ref": "#/components/responses/Infrastructure" }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed JSON or invalid request input",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The requested resource does not exist",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "DomainRule": {
+        "description": "The operation violates a domain rule (e.g. reschedule before billing start, suspend an already suspended contract)",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "Infrastructure": {
+        "description": "PostgreSQL or the MikroTik router is unavailable. For router-backed operations the domain mutation is persisted first, so a retry is safe (idempotent).",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Id": {
+        "type": "string",
+        "example": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+        "description": "Server-assigned entity id (UUID v4 in production)"
+      },
+      "Date": {
+        "type": "string",
+        "example": "2026-09-01",
+        "description": "ISO-8601 calendar date (YYYY-MM-DD)"
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error", "message"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": ["bad_request", "not_found", "domain_rule", "infrastructure", "internal"]
+          },
+          "message": { "type": "string" }
+        }
+      },
+      "SubscriberRequest": {
+        "type": "object",
+        "required": ["name", "static_ip"],
+        "properties": {
+          "name": { "type": "string", "example": "Ana García" },
+          "static_ip": {
+            "type": "string",
+            "format": "ipv4",
+            "example": "10.20.30.40",
+            "description": "Static IPv4 address assigned on the router"
+          }
+        }
+      },
+      "SubscriberView": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Id" },
+          "name": { "type": "string" },
+          "static_ip": { "type": "string" }
+        }
+      },
+      "PlanRequest": {
+        "type": "object",
+        "required": ["name", "download_mbps", "upload_mbps", "monthly_price_cents"],
+        "properties": {
+          "name": { "type": "string", "example": "Fibra 300" },
+          "download_mbps": { "type": "integer", "minimum": 1, "example": 300 },
+          "upload_mbps": { "type": "integer", "minimum": 1, "example": 150 },
+          "monthly_price_cents": { "type": "integer", "format": "int64", "minimum": 1, "example": 15000 }
+        }
+      },
+      "PlanView": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Id" },
+          "name": { "type": "string" },
+          "download_mbps": { "type": "integer" },
+          "upload_mbps": { "type": "integer" },
+          "monthly_price_cents": { "type": "integer", "format": "int64" }
+        }
+      },
+      "ContractRequest": {
+        "type": "object",
+        "required": ["subscriber_id", "plan_id", "billing_start", "due_date"],
+        "properties": {
+          "subscriber_id": { "$ref": "#/components/schemas/Id" },
+          "plan_id": { "$ref": "#/components/schemas/Id" },
+          "billing_start": { "$ref": "#/components/schemas/Date" },
+          "due_date": { "$ref": "#/components/schemas/Date" }
+        }
+      },
+      "RescheduleRequest": {
+        "type": "object",
+        "required": ["due_date"],
+        "properties": {
+          "due_date": {
+            "$ref": "#/components/schemas/Date",
+            "description": "New due date; must be after the billing start date"
+          }
+        }
+      },
+      "SpeedProfileRequest": {
+        "type": "object",
+        "required": ["download_mbps", "upload_mbps"],
+        "properties": {
+          "download_mbps": { "type": "integer", "minimum": 1, "example": 600 },
+          "upload_mbps": { "type": "integer", "minimum": 1, "example": 300 }
+        }
+      },
+      "PaymentRequest": {
+        "type": "object",
+        "required": ["amount_cents", "paid_on"],
+        "properties": {
+          "amount_cents": { "type": "integer", "format": "int64", "minimum": 1, "example": 15000 },
+          "paid_on": {
+            "$ref": "#/components/schemas/Date",
+            "description": "Date the payment was made"
+          }
+        }
+      },
+      "PaymentView": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Id" },
+          "contract_id": { "$ref": "#/components/schemas/Id" },
+          "amount_cents": { "type": "integer", "format": "int64" },
+          "registered_on": { "$ref": "#/components/schemas/Date" }
+        }
+      },
+      "ContractStatus": {
+        "type": "string",
+        "enum": ["active", "overdue", "suspended"]
+      },
+      "ContractView": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Id" },
+          "subscriber_id": { "$ref": "#/components/schemas/Id" },
+          "plan_id": { "$ref": "#/components/schemas/Id" },
+          "download_mbps": { "type": "integer" },
+          "upload_mbps": { "type": "integer" },
+          "billing_start": { "$ref": "#/components/schemas/Date" },
+          "due_date": { "$ref": "#/components/schemas/Date" },
+          "price_per_period_cents": { "type": "integer", "format": "int64" },
+          "suspended": { "type": "boolean" },
+          "status": { "$ref": "#/components/schemas/ContractStatus" },
+          "payments": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PaymentView" }
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["ok"] }
+        }
+      },
+      "SweepResponse": {
+        "type": "object",
+        "properties": {
+          "suspended_contract_ids": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Id" }
+          }
+        }
+      }
+    }
+  }
+}

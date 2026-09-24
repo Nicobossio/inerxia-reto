@@ -6,6 +6,7 @@
 
 #include "api/app_services.hpp"
 #include "api/contract_controller.hpp"
+#include "api/docs_controller.hpp"
 #include "api/health_controller.hpp"
 #include "api/plan_controller.hpp"
 #include "api/subscriber_controller.hpp"
@@ -35,6 +36,7 @@ private:
     PlanController plan_controller_;
     ContractController contract_controller_;
     HealthController health_controller_;
+    DocsController docs_controller_;
 };
 
 }  // namespace inerxia::api
