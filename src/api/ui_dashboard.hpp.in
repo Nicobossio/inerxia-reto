@@ -1,0 +1,14 @@
+#pragma once
+
+#include <string_view>
+
+namespace inerxia::api {
+
+// Generated at configure time from src/api/ui/dashboard.html (see CMakeLists.txt).
+// Client-side dashboard wired to the documented REST endpoints. Pure static
+// content served by DocsController — it carries no domain/business state.
+inline constexpr std::string_view kUiDashboard = R"ui(
+@UI_DASHBOARD_CONTENT@
+)ui";
+
+}  // namespace inerxia::api

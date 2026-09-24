@@ -82,6 +82,29 @@ DROP INDEX idx_payments_contract_id;
 CREATE INDEX idx_payments_contract_id_registered
     ON payments (contract_id, registered_on);
 )SQL"},
+        {3, "audit_log",
+         R"SQL(
+CREATE TABLE audit_logs (
+    id          BIGSERIAL PRIMARY KEY,
+    occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    actor       TEXT,
+    method      TEXT NOT NULL,
+    path        TEXT NOT NULL,
+    status      INTEGER NOT NULL,
+    detail      TEXT
+);
+
+CREATE INDEX idx_audit_logs_occurred_at ON audit_logs (occurred_at DESC);
+)SQL"},
+        {4, "users",
+         R"SQL(
+CREATE TABLE users (
+    id            TEXT PRIMARY KEY,
+    username      TEXT NOT NULL UNIQUE CHECK (length(btrim(username)) BETWEEN 3 AND 32),
+    password_hash TEXT NOT NULL CHECK (length(password_hash) > 0),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+)SQL"},
     };
     return scripts;
 }

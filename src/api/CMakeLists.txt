@@ -28,8 +28,18 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/openapi.json"
 )
 
+# The button-driven operator dashboard (src/api/ui/dashboard.html) is embedded the
+# same way: served without touching the filesystem at runtime.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/ui/dashboard.html" UI_DASHBOARD_CONTENT)
+configure_file(ui_dashboard.hpp.in "${OPENAPI_GENERATED_DIR}/api/ui_dashboard.hpp" @ONLY)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/ui/dashboard.html"
+)
+
 add_library(inerxia_api STATIC
     api_server.cpp
+    audit_controller.cpp
+    auth_controller.cpp
     contract_controller.cpp
     docs_controller.cpp
     health_controller.cpp
@@ -40,6 +50,7 @@ add_library(inerxia_api STATIC
 target_include_directories(inerxia_api PUBLIC ${PROJECT_SOURCE_DIR}/src "${OPENAPI_GENERATED_DIR}")
 target_link_libraries(inerxia_api PUBLIC
     inerxia_application
+    inerxia_infrastructure
     nlohmann_json::nlohmann_json
 )
 # Public headers (api_server.hpp) include <httplib.h>, so the target must be

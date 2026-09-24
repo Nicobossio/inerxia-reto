@@ -27,6 +27,14 @@
     {
       "name": "health",
       "description": "Infrastructure liveness probe."
+    },
+    {
+      "name": "auth",
+      "description": "Operator registration and session authentication. POST /api/auth/register and /api/auth/login are public; every other /api/* route requires a bearer session token."
+    },
+    {
+      "name": "audit",
+      "description": "Record of every change made through the API."
     }
   ],
   "paths": {
@@ -57,6 +65,25 @@
       }
     },
     "/api/subscribers": {
+      "get": {
+        "tags": ["subscribers"],
+        "summary": "List subscribers (inventory)",
+        "description": "Returns every registered ISP user. Called \"inventory\" by the operator dashboard.",
+        "operationId": "listSubscribers",
+        "responses": {
+          "200": {
+            "description": "Every subscriber",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/SubscriberView" }
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": ["subscribers"],
         "summary": "Create a subscriber",
@@ -407,6 +434,177 @@
           "503": { "$ref": "#/components/responses/Infrastructure" }
         }
       }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Register an operator",
+        "description": "Creates a new operator account (username 3-32 chars, lowercase [a-z0-9._-], password at least 8 chars) and returns the normalized username. Public, no token required. Passwords are stored only as a PBKDF2-HMAC-SHA256 hash.",
+        "operationId": "registerOperator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string", "example": "nadia"},
+                  "password": { "type": "string", "format": "password", "example": "s3cret" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Operador registrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["username"],
+                  "properties": {
+                    "username": { "type": "string", "description": "Normalized username" }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Username already registered",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "422": {
+            "description": "Username or password does not meet the registration rules",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Operator login",
+        "description": "Validates the operator credentials against the user database and returns a bearer session token. Private /api/* routes require it.",
+        "operationId": "operatorLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string", "example": "nadia" },
+                  "password": { "type": "string", "format": "password", "example": "s3cret" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Session token issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["token", "username"],
+                  "properties": {
+                    "token": { "type": "string", "description": "Opaque bearer token (Authorization: Bearer <token>)" },
+                    "username": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Operator logout",
+        "description": "Revokes the presented bearer token, if any.",
+        "operationId": "operatorLogout",
+        "responses": {
+          "204": { "description": "Session revoked" }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "summary": "Current session",
+        "description": "Reports whether a valid operator session is active for the presented bearer token. Public: answers 401 when the token is missing or invalid.",
+        "operationId": "currentSession",
+        "responses": {
+          "200": {
+            "description": "Session state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["authenticated"],
+                  "properties": {
+                    "authenticated": { "type": "boolean" },
+                    "username": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/audit": {
+      "get": {
+        "tags": ["audit"],
+        "summary": "Change audit trail",
+        "description": "Lists the recorded changes (actor, method, path, HTTP status, moment) newest first. Requires a valid admin session when authentication is enabled.",
+        "operationId": "listAudit",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 500, "default": 50 },
+            "description": "Maximum number of entries (default 50, capped at 500)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/AuditEntryView" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
     }
   },
   "components": {
@@ -437,6 +635,14 @@
       },
       "Infrastructure": {
         "description": "PostgreSQL or the MikroTik router is unavailable. For router-backed operations the domain mutation is persisted first, so a retry is safe (idempotent).",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid admin session token (when authentication is enabled)",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/Error" }
@@ -592,6 +798,26 @@
             "items": { "$ref": "#/components/schemas/Id" }
           }
         }
+      },
+      "AuditEntryView": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Storage-assigned identifier" },
+          "occurred_at": { "type": "string", "format": "date-time", "example": "2026-10-02T14:03:00Z" },
+          "actor": { "type": "string", "example": "admin" },
+          "method": { "type": "string", "example": "POST" },
+          "path": { "type": "string", "example": "/api/contracts" },
+          "status": { "type": "integer", "example": 201 },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque-token",
+        "description": "Session token issued by POST /api/auth/login (operator account registered via POST /api/auth/register). Private /api/* routes require it; register/login/logout and health/openapi stay public."
       }
     }
   }

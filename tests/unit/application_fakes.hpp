@@ -9,12 +9,46 @@
 
 #include "application/ports/contract_repository.hpp"
 #include "application/ports/internet_plan_repository.hpp"
+#include "application/ports/password_hasher.hpp"
 #include "application/ports/payment_repository.hpp"
 #include "application/ports/RouterGateway.h"
 #include "application/ports/subscriber_repository.hpp"
 #include "application/ports/time_provider.hpp"
+#include "application/ports/user_repository.hpp"
 
 namespace inerxia::application::test {
+
+// In-memory operator-account store for the AuthService unit tests.
+class InMemoryUserRepository final : public UserRepository {
+public:
+    std::string next_id() override { return "user-" + std::to_string(++id_counter_); }
+
+    std::optional<User> find_by_username(const std::string& username) const override {
+        const auto it = users_.find(username);
+        if (it == users_.end()) {
+            return std::nullopt;
+        }
+        return it->second;
+    }
+
+    void save(const User& user) override { users_.insert_or_assign(user.username, user); }
+
+    std::size_t size() const noexcept { return users_.size(); }
+
+private:
+    std::map<std::string, User> users_;
+    int id_counter_ = 0;
+};
+
+// Plain-text hasher for the AuthService tests: hashing policy (PBKDF2) is
+// exercised by its own dedicated unit tests.
+class PlainPasswordHasher final : public PasswordHasher {
+public:
+    std::string hash(const std::string& password) override { return "plain:" + password; }
+    bool verify(const std::string& password, const std::string& encoded) override {
+        return encoded == "plain:" + password;
+    }
+};
 
 class FakeTimeProvider final : public TimeProvider {
 public:
@@ -40,6 +74,15 @@ public:
             return std::nullopt;
         }
         return it->second;
+    }
+
+    std::vector<domain::Subscriber> find_all() const override {
+        std::vector<domain::Subscriber> result;
+        result.reserve(subscribers_.size());
+        for (const auto& [key, value] : subscribers_) {
+            result.push_back(value);
+        }
+        return result;
     }
 
     void save(const domain::Subscriber& subscriber) override {

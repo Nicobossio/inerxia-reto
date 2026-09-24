@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <vector>
 
 #include "application/ports/subscriber_repository.hpp"
 #include "infrastructure/postgres/pg_connection.hpp"
@@ -13,6 +14,7 @@ public:
 
     domain::SubscriberId next_id() override;
     std::optional<domain::Subscriber> find_by_id(const domain::SubscriberId& id) const override;
+    std::vector<domain::Subscriber> find_all() const override;
     void save(const domain::Subscriber& subscriber) override;
 
 private:

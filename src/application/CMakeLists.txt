@@ -10,10 +10,12 @@ add_library(inerxia_application STATIC
     use_cases/get_contract.cpp
     use_cases/get_plan.cpp
     use_cases/get_subscriber.cpp
+    use_cases/list_subscribers.cpp
     use_cases/reactivate_contract.cpp
     use_cases/register_payment.cpp
     use_cases/suspend_contract.cpp
     use_cases/update_contract.cpp
+    services/auth_service.cpp
 )
 
 target_include_directories(inerxia_application PUBLIC ${PROJECT_SOURCE_DIR}/src)

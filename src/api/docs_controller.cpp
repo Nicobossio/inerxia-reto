@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include "api/openapi_spec.hpp"
+#include "api/ui_dashboard.hpp"
 
 namespace inerxia::api {
 namespace {
@@ -53,6 +54,14 @@ void DocsController::register_routes(httplib::Server& server) {
     server.Get("/swagger", [this](const httplib::Request& req, httplib::Response& res) {
         handle_swagger_ui(req, res);
     });
+    // The button-driven operator dashboard is the landing surface; Swagger stays
+    // available for the raw OpenAPI walkthrough.
+    server.Get("/ui", [this](const httplib::Request& req, httplib::Response& res) {
+        handle_dashboard(req, res);
+    });
+    server.Get("/", [this](const httplib::Request& req, httplib::Response& res) {
+        handle_root(req, res);
+    });
 }
 
 void DocsController::handle_openapi_spec(const httplib::Request&, httplib::Response& response) const {
@@ -63,6 +72,16 @@ void DocsController::handle_openapi_spec(const httplib::Request&, httplib::Respo
 void DocsController::handle_swagger_ui(const httplib::Request&, httplib::Response& response) const {
     response.status = 200;
     response.set_content(std::string{kSwaggerUiPage}, "text/html; charset=utf-8");
+}
+
+void DocsController::handle_dashboard(const httplib::Request&, httplib::Response& response) const {
+    response.status = 200;
+    response.set_content(std::string{kUiDashboard}, "text/html; charset=utf-8");
+}
+
+void DocsController::handle_root(const httplib::Request&, httplib::Response& response) const {
+    response.status = 302;
+    response.set_header("Location", "/ui");
 }
 
 }  // namespace inerxia::api

@@ -24,6 +24,7 @@ BODY=/tmp/inerxia-demo-body.json
 RUN_TAG=$((RANDOM % 200))
 IPA="10.99.$RUN_TAG.10"
 IPB="10.99.$RUN_TAG.11"
+DEMO_PASS="demo-operator-pass"
 
 log() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 pass() { printf '  \033[32mPASS\033[0m %s\n' "$*"; }
@@ -60,7 +61,6 @@ start_server() {
     export PGUSER=${PGUSER:-inerxia} PGPASSWORD=${PGPASSWORD:-inerxia_secret}
     export PGDATABASE=${PGDATABASE:-inerxia} SWEEP_INTERVAL_MS=0
     export MIKROTIK_BASE_URL="$RT" MIKROTIK_USER="$RT_USER" MIKROTIK_PASSWORD="$RT_PASS"
-    export ADMIN_USER=${ADMIN_USER:-} ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     "$ROOT/build/src/api/inerxia_server" >/tmp/inerxia-demo-server.log 2>&1 &
     SRV=$!
     for _ in $(seq 1 50); do
@@ -70,31 +70,32 @@ start_server() {
     return 1
 }
 
-# Optional admin login: when ADMIN_USER/ADMIN_PASSWORD are set the server runs in
-# authenticated mode; obtain a bearer token so req() is authorized. Anonymous
-# servers (no admin configured) answer 403 and TOKEN stays empty.
-login_admin() {
-    [ -n "${ADMIN_USER:-}" ] && [ -n "${ADMIN_PASSWORD:-}" ] || return 0
+# Auth is always on: register a throwaway operator and log in so req() is
+# authorized. The dashboard follows the same flow (register is the landing page).
+register_operator() {
+    DEMO_USER="demo_${RUN_TAG}"
+    curl -s -X POST -H 'Content-Type: application/json' \
+        -d "{\"username\":\"$DEMO_USER\",\"password\":\"$DEMO_PASS\"}" \
+        "$BASE/api/auth/register" >/dev/null
     TOKEN=$(
         curl -s -X POST -H 'Content-Type: application/json' \
-            -d "$(python3 -c 'import os,json;print(json.dumps({"username":os.environ["ADMIN_USER"],"password":os.environ["ADMIN_PASSWORD"]}))')" \
+            -d "{\"username\":\"$DEMO_USER\",\"password\":\"$DEMO_PASS\"}" \
             "$BASE/api/auth/login" \
             | python3 -c 'import json,sys; print(json.load(sys.stdin).get("token",""))'
     )
-    [ -n "$TOKEN" ] && log "Autenticado como $ADMIN_USER" || log "Aviso: no se pudo autenticar (servidor anónimo o credenciales erróneas)"
+    [ -n "$TOKEN" ] && log "Operador registrado: $DEMO_USER" || log "Aviso: no se pudo autenticar"
 }
-stop_server() { kill -TERM "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null; return 0; }
+stop_server() { [ -n "${SRV:-}" ] && kill -TERM "$SRV" 2>/dev/null; return 0; }
 trap stop_server EXIT
 
 if ! curl -sf "$BASE/api/health" >/dev/null; then
-    [ -n "${ADMIN_USER:-}" ] && export ADMIN_USER ADMIN_PASSWORD
     if ! start_server; then
         echo "Could not reach the API at $BASE (server failed to boot; see /tmp/inerxia-demo-server.log)"
         exit 1
     fi
     echo "API server started (pid $SRV)"
 fi
-login_admin
+register_operator
 
 # ---------------------------------------------------------------------------
 log "R1. Plan de Internet asignado a un usuario ISP (subscriber + plan + contrato)"
@@ -160,16 +161,16 @@ log "R8. Reactivación automática tras pago"
 [ "$(req GET /api/contracts/$CTRB)" = "200" ] && [ "$(json status)" = "active" ] && sleep 1 && ! router_has_ip "$IPB" && pass "pago → active y MikroTik desbloquea $IPB" || fail "reactivación automática falló"
 
 # ---------------------------------------------------------------------------
-# Admin-only checks (only when the API runs in authenticated mode).
-log "R11. Extras: login de admin, inventario de usuarios y auditoría de cambios"
+# Operator extras: inventory + audit (auth is always on; TOKEN comes from register+login).
+log "R11. Extras: registro en BD, inventario de usuarios y auditoría de cambios"
 if [ -n "${TOKEN:-}" ]; then
     [ "$(req GET /api/subscribers)" = "200" ] && [ "$(json )" != "[]" ] && pass "inventario devuelve usuarios" || fail "inventario vacío o no disponible"
     CODE=$(req GET "/api/audit?limit=10")
-    [ "$CODE" = "200" ] && [ "$(json )" != "[]" ] && pass "auditoría registra los cambios del admin" || fail "auditoría no devuelve entradas ($CODE)"
-    [ "$(req POST /api/auth/logout)" = "204" ] && [ "$(req GET /api/audit)" != "200" ] && pass "logout revoca la sesión (401 tras salir)" || fail "logout no revoca la sesión"
-    login_admin
+    [ "$CODE" = "200" ] && [ "$(json )" != "[]" ] && pass "auditoría registra los cambios del operador" || fail "auditoría no devuelve entradas ($CODE)"
+    [ "$(req POST /api/auth/logout '{}')" = "204" ] && [ "$(req GET /api/audit)" != "200" ] && pass "logout revoca la sesión (401 tras salir)" || fail "logout no revoca la sesión"
+    register_operator
 else
-    echo "  (sin ADMIN_USER/ADMIN_PASSWORD — el servidor corre en modo anónimo; se omiten)"
+    echo "  (sin token — no se pudo registrar el operador de demo; se omiten)"
 fi
 
 # ---------------------------------------------------------------------------

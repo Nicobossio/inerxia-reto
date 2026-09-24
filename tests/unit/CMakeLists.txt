@@ -1,11 +1,14 @@
 set(UNIT_TEST_SOURCES
     test_application_use_cases.cpp
+    test_auth_service.cpp
     test_contract.cpp
     test_contract_rules.cpp
     test_internet_plan.cpp
+    test_list_subscribers.cpp
     test_mikrotik_env.cpp
     test_mikrotik_router_gateway.cpp
     test_payment.cpp
+    test_pbkdf2_hasher.cpp
     test_periodic_scheduler.cpp
     test_pg_utils.cpp
     test_retrying_router_gateway.cpp

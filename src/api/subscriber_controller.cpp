@@ -6,13 +6,18 @@
 namespace inerxia::api {
 
 SubscriberController::SubscriberController(application::CreateSubscriber& create,
-                                           application::GetSubscriber& get)
-    : create_(create), get_(get) {}
+                                           application::GetSubscriber& get,
+                                           application::ListSubscribers& list)
+    : create_(create), get_(get), list_(list) {}
 
 void SubscriberController::register_routes(httplib::Server& server) {
     server.Post("/api/subscribers", [this](const httplib::Request& req, httplib::Response& res) {
         handle_create(req, res);
     });
+    server.Get("/api/subscribers",
+               [this](const httplib::Request& req, httplib::Response& res) {
+                   handle_list_all(req, res);
+               });
     server.Get("/api/subscribers/([^/]+)",
                [this](const httplib::Request& req, httplib::Response& res) {
                    handle_get(req, res);
@@ -42,6 +47,20 @@ void SubscriberController::handle_get(const httplib::Request& request,
             const auto subscriber = get_(domain::SubscriberId{std::string{request.matches[1]}});
             response.status = 200;
             response.set_content(to_json(to_view(subscriber)).dump(), "application/json");
+        },
+        response);
+}
+
+void SubscriberController::handle_list_all(const httplib::Request&,
+                                           httplib::Response& response) const {
+    run_and_handle(
+        [&] {
+            nlohmann::json body = nlohmann::json::array();
+            for (const auto& subscriber : list_()) {
+                body.push_back(to_json(to_view(subscriber)));
+            }
+            response.status = 200;
+            response.set_content(body.dump(), "application/json");
         },
         response);
 }

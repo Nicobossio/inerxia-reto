@@ -29,15 +29,18 @@
 #include "domain/money.hpp"
 #include "domain/payment.hpp"
 #include "domain/subscriber.hpp"
+#include "application/application_error.hpp"
 #include "infrastructure/postgres/migrations.hpp"
 #include "infrastructure/postgres/pg_connection.hpp"
 #include "infrastructure/postgres/pg_row.hpp"
 #include "infrastructure/postgres/pg_utils.hpp"
 #include "infrastructure/postgres/postgres_config.hpp"
+#include "infrastructure/postgres/postgres_audit_repository.hpp"
 #include "infrastructure/postgres/postgres_contract_repository.hpp"
 #include "infrastructure/postgres/postgres_internet_plan_repository.hpp"
 #include "infrastructure/postgres/postgres_payment_repository.hpp"
 #include "infrastructure/postgres/postgres_subscriber_repository.hpp"
+#include "infrastructure/postgres/postgres_user_repository.hpp"
 
 namespace {
 
@@ -106,7 +109,9 @@ struct TestDatabase {
             apply_migrations(*connection);
             // The suite owns this database: start from a clean slate so re-runs
             // against the persistent test database never collide with leftovers.
-            connection->exec("TRUNCATE payments, contracts, subscribers, internet_plans CASCADE");
+            connection->exec(
+                "TRUNCATE payments, contracts, subscribers, internet_plans, audit_logs, "
+                "users CASCADE");
             pool = std::move(created);
         } catch (const std::exception& error) {
             unavailability =
@@ -172,6 +177,48 @@ TEST_F(PostgresRepositoryTest, MigrationsApplyAndAreIdempotent) {
     const PgRow second{versions, 1};
     EXPECT_EQ(second.integer(0), 2);
     EXPECT_EQ(second.required_text(1), "referential_integrity_and_query_indexes");
+    const PgRow third{versions, 2};
+    EXPECT_EQ(third.integer(0), 3);
+    EXPECT_EQ(third.required_text(1), "audit_log");
+    ASSERT_GE(versions.row_count(), 4);
+    const PgRow fourth{versions, 3};
+    EXPECT_EQ(fourth.integer(0), 4);
+    EXPECT_EQ(fourth.required_text(1), "users");
+}
+
+// A username fit for the users table's 3..32 CHECK.
+std::string unique_username() {
+    const std::string uuid = next_uuid_v4();
+    return "op_" + uuid.substr(0, 8);
+}
+
+TEST_F(PostgresRepositoryTest, UserSaveAndFindRoundTrip) {
+    PostgresUserRepository repository{pool()};
+    const auto username = unique_username();
+    repository.save(inerxia::application::User{repository.next_id(), username, "hash-abc", ""});
+
+    const auto loaded = repository.find_by_username(username);
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->username, username);
+    EXPECT_EQ(loaded->password_hash, "hash-abc");
+    EXPECT_FALSE(loaded->id.empty());
+    EXPECT_FALSE(loaded->created_at.empty());
+    EXPECT_FALSE(repository.find_by_username(unique_username()).has_value());
+}
+
+TEST_F(PostgresRepositoryTest, UserSaveEnforcesUniqueUsername) {
+    PostgresUserRepository repository{pool()};
+    const auto username = unique_username();
+    const auto first = repository.next_id();
+    repository.save(inerxia::application::User{first, username, "hash-1", ""});
+
+    EXPECT_THROW(repository.save(inerxia::application::User{repository.next_id(), username,
+                                                            "hash-2", ""}),
+                 inerxia::application::UsernameAlreadyRegisteredError);
+    const auto loaded = repository.find_by_username(username);
+    ASSERT_TRUE(loaded.has_value());
+    EXPECT_EQ(loaded->id, first);
+    EXPECT_EQ(loaded->password_hash, "hash-1");
 }
 
 TEST_F(PostgresRepositoryTest, SubscriberSaveAndFindRoundTrip) {
@@ -385,6 +432,65 @@ TEST_F(PostgresRepositoryTest, NextIdProducesDistinctIds) {
     EXPECT_NE(c, d);
     EXPECT_FALSE(std::string{a.value()}.empty());
     EXPECT_FALSE(std::string{c.value()}.empty());
+}
+
+TEST_F(PostgresRepositoryTest, SubscriberFindAllReturnsEverySavedRow) {
+    PostgresSubscriberRepository repository{pool()};
+    const auto ip_a = unique_static_ip();
+    const auto ip_b = unique_static_ip();
+    repository.save(Subscriber{SubscriberId{next_uuid_v4()}, "Ana", IPAddress{ip_a}});
+    repository.save(Subscriber{SubscriberId{next_uuid_v4()}, "Bruno", IPAddress{ip_b}});
+
+    const auto all = repository.find_all();
+    const auto has_ip = [&all](const std::string& ip) {
+        return std::any_of(all.begin(), all.end(),
+                           [&](const Subscriber& s) { return s.static_ip().value() == ip; });
+    };
+    EXPECT_TRUE(has_ip(ip_a));
+    EXPECT_TRUE(has_ip(ip_b));
+    EXPECT_GE(all.size(), 2u);
+}
+
+TEST_F(PostgresRepositoryTest, AuditAppendAndListRoundTrip) {
+    PostgresAuditRepository repository{pool()};
+    inerxia::application::AuditEntry entry;
+    entry.occurred_at = "2026-10-02T12:00:00Z";
+    entry.actor = "admin";
+    entry.method = "POST";
+    entry.path = "/api/contracts";
+    entry.status = 201;
+    entry.detail = "created contract";
+    EXPECT_NO_THROW(repository.append(entry));
+
+    const auto entries = repository.list_recent(50);
+    const auto it = std::find_if(entries.begin(), entries.end(), [&](const auto& e) {
+        return e.method == entry.method && e.path == entry.path && e.status == entry.status;
+    });
+    ASSERT_NE(it, entries.end());
+    EXPECT_FALSE(it->id.empty());
+    EXPECT_EQ(it->occurred_at, "2026-10-02T12:00:00Z");
+    EXPECT_EQ(it->actor, "admin");
+    EXPECT_EQ(it->detail, "created contract");
+}
+
+TEST_F(PostgresRepositoryTest, AuditListReturnsNewestFirstRespectingLimit) {
+    PostgresAuditRepository repository{pool()};
+    inerxia::application::AuditEntry entry;
+    entry.actor = "admin";
+    for (int i = 1; i <= 3; ++i) {
+        entry.occurred_at = "2026-10-0" + std::to_string(i) + "T12:00:00Z";
+        entry.method = "POST";
+        entry.path = "/api/test/" + std::to_string(i);
+        entry.status = 200 + i;
+        repository.append(entry);
+    }
+
+    const auto limited = repository.list_recent(2);
+    ASSERT_EQ(limited.size(), 2u);
+    EXPECT_EQ(limited.at(0).path, "/api/test/3");
+    EXPECT_EQ(limited.at(1).path, "/api/test/2");
+    EXPECT_EQ(limited.at(0).status, 203);
+    EXPECT_EQ(limited.at(1).status, 202);
 }
 
 }  // namespace

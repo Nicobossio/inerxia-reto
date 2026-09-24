@@ -137,9 +137,19 @@ export PGUSER=inerxia PGPASSWORD=CHANGE_ME PGDATABASE=inerxia
 export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
 # API_HOST/API_PORT optional (default 127.0.0.1:8484)
 # SWEEP_INTERVAL_MS optional (default 60000; 0 disables the automatic sweep)
+# AUTH_SESSION_TTL_MS optional (default 43200000) — session lifetime for
+# operators registered through POST /api/auth/register.
 ./build/src/api/inerxia_server
 # API docs (no extra service): GET /swagger -> Swagger UI (CDN assets),
 # GET /api/openapi.json -> embedded OpenAPI 3.0 spec (src/api/openapi.json)
+# Operator dashboard (buttons for every life-cycle operation, no CDN): GET /ui
+# (root '/' redirects to it). Served from src/api/ui/dashboard.html, embedded
+# into the binary at build time like the OpenAPI spec. The dashboard opens on a
+# landing page (register/login) and shows the platform only after logging in:
+# it restores the session (localStorage token vs GET /api/auth/me) and has an
+# Inventario module (GET /api/subscribers) and an Auditoría module (GET /api/audit).
+# The demo script (scripts/lab/demo-challenge.sh) registers a throwaway operator
+# and logs in automatically to verify inventory + audit at the end.
 ```
 
 ## Design decisions (recorded as required)
@@ -192,6 +202,33 @@ export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
   turns the signal flag into `server.stop()` + `sweep.stop()`) shutdowns gracefully
   without ever blocking the HTTP thread. Logging follows the existing stderr-sink
   convention used by the MikroTik adapter.
+- **Operator authentication is always on and backed by PostgreSQL users**
+  (`users` migration v4; register via `POST /api/auth/register`, login via
+  `/api/auth/login`). Requested by the operator (challenge has no auth requirement,
+  so it is additive). `AuthService` (application, std-only token generation via
+  `random_device`) + `UserRepository`/`PasswordHasher`/`SessionStore` ports with
+  adapters in `infrastructure/`: `PostgresUserRepository`, `InMemorySessionStore`
+  (thread-safe, expires after `AUTH_SESSION_TTL_MS`, default 12 h), and
+  `OpenSslPbkdf2Hasher` (PBKDF2-HMAC-SHA256, 210 000 iterations, 16-byte salt,
+  `CRYPTO_memcmp`; stored self-describing as `pbkdf2-sha256$<iter>$<salt>$<key>`).
+  Usernames are normalized (trim + lowercase) and validated (3-32 chars,
+  `[a-z0-9._-]`); duplicates answer 409 `username_taken`, weak input 422
+  `registration_rule`. The gate lives in `ApiServer::pre_routing`: every private
+  `/api/*` route (public are `register`, `login`, `logout`, `health`,
+  `openapi.json`, docs and non-`/api/*`) answers 401 without a valid
+  `Authorization: Bearer <token>`. The actor travels on an internal
+  `X-Inerxia-Actor` response header that `post_routing` erases before the bytes go out.
+- **Change audit is an HTTP-boundary concern, not business logic** (`ApiServer::post_routing`):
+  each mutating `/api/*` request (POST/PUT/PATCH/DELETE) appends a row to the `audit_logs`
+  table (`audit_logs` migration v3): actor, method, path, HTTP status, ISO-8601 instant
+  and a short body-derived detail (register/login/logout record only "user
+  registration"/"user login"/"user logout", never the password). Rollback-free by design:
+  a failed `append` is logged to stderr and never breaks the generated response.
+  `GET /api/audit?limit=N` (capped 500, newest first) exposes it to the operator
+  (`AuditRepository` port + `PostgresAuditRepository`).
+- **Subscriber inventory** (`GET /api/subscribers`, `ListSubscribers` use case,
+  `SubscriberRepository::find_all`): the operator dashboard's Inventario module. A pure
+  read-model listing; no enriched DTOs beyond the existing `SubscriberView`.
 
 ## Repository conventions
 

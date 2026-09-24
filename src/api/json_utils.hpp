@@ -1,6 +1,13 @@
 #pragma once
 
+// gmtime_r is POSIX; expose it even under strict -std=c++20 (glibc).
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <chrono>
+#include <cstdio>
+#include <ctime>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -55,6 +62,27 @@ inline std::string format_iso_date(std::chrono::year_month_day date) {
     return std::to_string(static_cast<int>(date.year())) + "-" +
            two_digits(static_cast<unsigned>(date.month())) + "-" +
            two_digits(static_cast<unsigned>(date.day()));
+}
+
+// Current UTC instant as an ISO-8601 string (e.g. 2026-10-02T14:03:00Z), used
+// to timestamp audit entries at the HTTP boundary.
+inline std::string iso_utc_now() {
+    const std::time_t now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::tm utc{};
+    gmtime_r(&now, &utc);
+    char buffer[32]{};
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &utc);
+    return buffer;
+}
+
+// Extracts the bearer token from an Authorization header ("Bearer <token>"),
+// or an empty string when absent/malformed.
+inline std::string bearer_token(const httplib::Request& request) {
+    const std::string header = request.get_header_value("Authorization");
+    if (header.rfind("Bearer ", 0) == 0) {
+        return header.substr(7);
+    }
+    return "";
 }
 
 inline std::string_view status_to_string(domain::ContractStatus status) {
@@ -118,6 +146,10 @@ void run_and_handle(F&& handler, httplib::Response& response) {
         reply_error(response, error.status, error.code, error.message);
     } catch (const application::EntityNotFoundError& error) {
         reply_error(response, 404, "not_found", error.what());
+    } catch (const application::UsernameAlreadyRegisteredError& error) {
+        reply_error(response, 409, "username_taken", error.what());
+    } catch (const application::RegistrationError& error) {
+        reply_error(response, 422, "registration_rule", error.what());
     } catch (const domain::DomainError& error) {
         reply_error(response, 422, "domain_rule", error.what());
     } catch (const infrastructure::InfrastructureError& error) {

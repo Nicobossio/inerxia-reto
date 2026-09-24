@@ -27,6 +27,21 @@ std::optional<domain::Subscriber> PostgresSubscriberRepository::find_by_id(
                               row.required_text(1), domain::IPAddress{row.required_text(2)}};
 }
 
+std::vector<domain::Subscriber> PostgresSubscriberRepository::find_all() const {
+    auto connection = pool_.acquire();
+    connection->prepare("subscriber_select_all",
+                        "SELECT id, name, static_ip FROM subscribers ORDER BY name");
+    const PgResult result = connection->exec_prepared("subscriber_select_all", {});
+    std::vector<domain::Subscriber> subscribers;
+    subscribers.reserve(static_cast<std::size_t>(result.row_count()));
+    for (int row = 0; row < result.row_count(); ++row) {
+        const PgRow r{result, row};
+        subscribers.emplace_back(domain::SubscriberId{r.required_text(0)}, r.required_text(1),
+                                 domain::IPAddress{r.required_text(2)});
+    }
+    return subscribers;
+}
+
 void PostgresSubscriberRepository::save(const domain::Subscriber& subscriber) {
     auto connection = pool_.acquire();
     connection->prepare(
