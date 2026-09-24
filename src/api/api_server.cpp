@@ -67,8 +67,9 @@ ApiServer::ApiServer(AppServices& services, infrastructure::postgres::PostgresPo
                            services.suspend_contract,
                            services.reactivate_contract,
                            services.change_speed_profile,
-                           services.register_payment,
-                           services.evaluate_expired_contracts},
+services.register_payment,
+                            services.evaluate_expired_contracts,
+                            services.list_contracts},
       health_controller_{pool} {
     server_.set_pre_routing_handler([this](const httplib::Request& request,
                                            httplib::Response& response) {

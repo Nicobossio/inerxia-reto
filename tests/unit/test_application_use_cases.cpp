@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <map>
 
 #include "application/application_error.hpp"
 #include "application/ports/time_provider.hpp"
@@ -12,6 +13,7 @@
 #include "application/use_cases/get_contract.hpp"
 #include "application/use_cases/get_plan.hpp"
 #include "application/use_cases/get_subscriber.hpp"
+#include "application/use_cases/list_contracts.hpp"
 #include "application/use_cases/reactivate_contract.hpp"
 #include "application/use_cases/register_payment.hpp"
 #include "application/use_cases/suspend_contract.hpp"
@@ -147,6 +149,46 @@ TEST_F(ApplicationUseCaseTest, GetContractWithUnknownIdThrows) {
     GetContract use_case{contracts_, clock_};
 
     EXPECT_THROW(use_case(ContractId{"unknown"}), EntityNotFoundError);
+}
+
+TEST_F(ApplicationUseCaseTest, ListContractsReturnsEveryContractWithStatusFromClock) {
+    seed_subscriber();
+    seed_plan();
+    auto active = create_contract();
+    seed_subscriber(SubscriberId{"sub-2"}, IPAddress{"10.20.30.41"});
+    auto early = create_contract(SubscriberId{"sub-2"}, PlanId{"plan-1"},
+                                 year{2026}/8/1, year{2026}/9/15);
+
+    clock_.set_today(year{2026}/9/20);
+
+    ListContracts use_case{contracts_, clock_};
+    const auto snapshots = use_case();
+
+    ASSERT_EQ(snapshots.size(), 2U);
+    std::map<std::string, ContractStatus> statuses;
+    for (const auto& snapshot : snapshots) {
+        statuses[std::string{snapshot.contract.id().value()}] = snapshot.status;
+    }
+    EXPECT_EQ(statuses.at(std::string{active.id().value()}), ContractStatus::Active);
+    EXPECT_EQ(statuses.at(std::string{early.id().value()}), ContractStatus::Overdue);
+}
+
+TEST_F(ApplicationUseCaseTest, ListContractsKeepsSuspendedStatus) {
+    seed_subscriber();
+    seed_plan();
+    auto suspended = create_contract();
+
+    SuspendContract suspend{contracts_, subscribers_, router_};
+    suspend(SuspendContractCommand{suspended.id()});
+
+    clock_.set_today(year{2026}/10/2);
+
+    ListContracts use_case{contracts_, clock_};
+    const auto snapshots = use_case();
+
+    ASSERT_EQ(snapshots.size(), 1U);
+    EXPECT_EQ(snapshots.front().contract.id(), suspended.id());
+    EXPECT_EQ(snapshots.front().status, ContractStatus::Suspended);
 }
 
 TEST_F(ApplicationUseCaseTest, UpdateContractReschedulesDueDateAndPersists) {

@@ -91,7 +91,6 @@
   }
   .land-card h1 { margin: 0; font-size: 24px; letter-spacing: .3px; }
   .land-msg { min-height: 18px; margin: 10px 0 4px; font-size: 12px; color: var(--err); }
-  .land-toggle { margin-top: 14px; font-size: 13px; text-align: center; }
 </style>
 </head>
 <body>
@@ -116,13 +115,10 @@
     <h1>Inerxia</h1>
     <form onsubmit="return false;">
       <div class="field"><label>Usuario</label><input id="landUser" autocomplete="username"></div>
-      <div class="field"><label>Contrase&ntilde;a</label><input id="landPass" type="password" autocomplete="new-password"></div>
-      <div class="field" id="passWrap2"><label>Confirmar contrase&ntilde;a</label><input id="landPass2" type="password" autocomplete="new-password"></div>
-      <button id="landSubmit" onclick="runRegister()">Crear cuenta</button>
+      <div class="field"><label>Contrase&ntilde;a</label><input id="landPass" type="password" autocomplete="current-password"></div>
+      <button id="landSubmit" onclick="runLogin()">Iniciar sesi&oacute;n</button>
       <div id="landMsg" class="land-msg"></div>
-      <div class="land-toggle"><a id="landToggle" href="#" onclick="setLandingMode('login'); return false;">&iquest;Ya tienes una cuenta? Inicia sesi&oacute;n</a></div>
     </form>
-    <div class="hint" style="text-align:center">Crea una cuenta para empezar a operar.</div>
   </div>
 </section>
 
@@ -168,12 +164,18 @@
 
     <div class="card view" id="view-lifecycle">
       <h2>Ciclo de vida</h2>
-      <div class="field"><label>Contrato</label><input id="lifeId" placeholder="id del contrato"></div>
+      <div class="scroll">
+        <table class="inv">
+          <thead><tr><th>Cliente</th><th>IP est&aacute;tica</th><th>Contrato</th><th>Estado</th><th>Vencimiento</th></tr></thead>
+          <tbody id="lifeBody"><tr><td colspan="5" style="color:var(--muted)">(cargando &hellip;)</td></tr></tbody>
+        </table>
+      </div>
+      <button class="ghost" onclick="runRefreshLifecycle()" style="margin-top:8px">Actualizar</button>
+      <div class="field" style="margin-top:12px"><label>Contrato</label><input id="lifeId" placeholder="id del contrato"></div>
       <div class="row">
         <button onclick="runSuspend()">Suspender</button>
         <button onclick="runReactivate()">Reactivar</button>
       </div>
-      <div class="hint">Bloquea o desbloquea el servicio del usuario.</div>
     </div>
 
     <div class="card view" id="view-payments">
@@ -258,22 +260,13 @@ function setView(authed, username) {
     logoutBtn.style.display = "";
     switchView("view-client");
     runRefreshInventory();
+    refreshLifecycle();
   } else {
     landing.style.display = "";
     platform.style.display = "none";
     topbar.style.display = "none";
     logoutBtn.style.display = "none";
   }
-}
-
-function setLandingMode(mode) {
-  const isLogin = mode === "login";
-  document.getElementById("passWrap2").style.display = isLogin ? "none" : "";
-  document.getElementById("landPass").autocomplete = isLogin ? "current-password" : "new-password";
-  document.getElementById("landSubmit").textContent = isLogin ? "Iniciar sesión" : "Crear cuenta";
-  document.getElementById("landSubmit").onclick = isLogin ? runLogin : runRegister;
-  document.getElementById("landToggle").textContent = isLogin ? "¿No tienes una cuenta? Crea una" : "¿Ya tienes una cuenta? Inicia sesión";
-  setLandMsg("");
 }
 
 function setLandMsg(text) {
@@ -288,27 +281,6 @@ function landingError(r) {
   }
   return "Error " + r.status + ": no se pudo completar la operación.";
 }
-
-function adoptSession(username, password) {
-  document.getElementById("landPass").value = password;
-  return runLogin();
-}
-
-const runRegister = handle(async () => {
-  const username = el("landUser");
-  const password = document.getElementById("landPass").value;
-  if (!username || !password) {
-    setLandMsg("Introduce usuario y contraseña.");
-    return;
-  }
-  const registered = await api("POST", "/api/auth/register", { username, password });
-  if (registered.ok && registered.data && registered.data.username) {
-    setLandMsg("Cuenta creada; entrando…");
-    await adoptSession(registered.data.username, password);
-  } else {
-    setLandMsg(landingError(registered));
-  }
-});
 
 function el(id) { return document.getElementById(id).value.trim(); }
 function today() { return new Date().toISOString().slice(0, 10); }
@@ -432,6 +404,7 @@ const runCreateClient = handle(async () => {
   await refreshContractTable(ids.contract);
   status("Cliente creado: suscriptor, plan y contrato.", true);
   runRefreshInventory();
+  refreshLifecycle();
 });
 
 function esc(s) {
@@ -444,6 +417,41 @@ function fecha(iso) { return iso ? iso.split("-").reverse().join("/") : ""; }
 function estatus(s) {
   return s === "active" ? "Activo" : s === "suspended" ? "Suspendido" : "Vencido";
 }
+function badge(s) {
+  if (s === "active") return '<span class="badge active">Activo</span>';
+  if (s === "suspended") return '<span class="badge suspended">Suspendido</span>';
+  return '<span class="badge overdue">Vencido</span>';
+}
+
+async function refreshLifecycle() {
+  const tbody = document.getElementById("lifeBody");
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">(cargando &hellip;)</td></tr>';
+  const subs = await api("GET", "/api/subscribers");
+  const cts = await api("GET", "/api/contracts");
+  if (!subs.ok || !Array.isArray(subs.data) || !cts.ok || !Array.isArray(cts.data)) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--err)">no disponible</td></tr>';
+    return;
+  }
+  if (subs.data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">(sin usuarios a&uacute;n)</td></tr>';
+    return;
+  }
+  const latest = {};
+  cts.data.forEach(function (c) {
+    const prior = latest[c.subscriber_id];
+    if (!prior || c.due_date > prior.due_date) latest[c.subscriber_id] = c;
+  });
+  tbody.innerHTML = subs.data.map(function (u) {
+    const c = latest[u.id];
+    const cell = c
+      ? '<td class="mono">' + esc(c.id) + '</td><td>' + badge(c.status) +
+        '</td><td class="mono">' + fecha(c.due_date) + '</td>'
+      : '<td>&mdash;</td><td><span class="badge">Sin contrato</span></td><td>&mdash;</td>';
+    return '<tr><td>' + esc(u.name) + '</td><td class="mono">' + esc(u.static_ip) + '</td>' + cell + '</tr>';
+  }).join("");
+}
+const runRefreshLifecycle = handle(refreshLifecycle);
 
 async function refreshContractTable(id) {
   const box = document.getElementById("ctrInfo");
@@ -506,14 +514,20 @@ const runSuspend = handle(async () => {
   const id = el("lifeId") || ids.contract;
   if (!id) { status("Indica el contrato.", false); return; }
   const r = await api("POST", "/api/contracts/" + id + "/suspend", {});
-  if (r.ok) status("Contrato suspendido.", true);
+  if (r.ok) {
+    status("Contrato suspendido.", true);
+    refreshLifecycle();
+  }
 });
 
 const runReactivate = handle(async () => {
   const id = el("lifeId") || ids.contract;
   if (!id) { status("Indica el contrato.", false); return; }
   const r = await api("POST", "/api/contracts/" + id + "/reactivate", {});
-  if (r.ok) status("Contrato reactivado.", true);
+  if (r.ok) {
+    status("Contrato reactivado.", true);
+    refreshLifecycle();
+  }
 });
 
 let lastPayment = null;
@@ -548,8 +562,11 @@ const runSpeedProfile = handle(async () => {
 const runSweep = handle(async () => {
   const r = await api("POST", "/api/sweep/expired", {});
   if (r.ok) {
-    status("Revisión completada: " + (r.data.reactivated || 0) + " reactivados y " +
-      (r.data.suspended || 0) + " suspendidos.", true);
+    const ids = (r.data && r.data.suspended_contract_ids) || [];
+    status(ids.length
+      ? "Revisión completada: " + ids.length + (ids.length === 1 ? " contrato suspendido." : " contratos suspendidos.")
+      : "Revisión completada: ningún contrato vencido.", true);
+    refreshLifecycle();
   }
 });
 

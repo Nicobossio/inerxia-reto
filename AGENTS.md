@@ -233,6 +233,11 @@ export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
 - **Subscriber inventory** (`GET /api/subscribers`, `ListSubscribers` use case,
   `SubscriberRepository::find_all`): the operator dashboard's Inventario module. A pure
   read-model listing; no enriched DTOs beyond the existing `SubscriberView`.
+- **Contract lifecycle listing** (`GET /api/contracts`, `ListContracts` use case,
+  reusing `ContractRepository::all()` + `status_as_of`): powers the dashboard's
+  Ciclo de vida table — every subscriber's current contract and state
+  (activo/vencido/suspendido) so the operator sees who renews and who cancels.
+  Read-model only; the route is registered before the `{id}` capture.
 
 ## Repository conventions
 

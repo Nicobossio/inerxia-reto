@@ -26,6 +26,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -442,6 +443,29 @@ TEST_F(ApiHttpTest, SweepSuspendsOverdueAndPaymentReactivates) {
     const auto reactivated = body(http.Get("/api/contracts/" + contract_id));
     EXPECT_EQ(reactivated.at("status"), "active");
     ASSERT_EQ(reactivated.at("payments").size(), 1U);
+}
+
+TEST_F(ApiHttpTest, ContractListReturnsEveryContractWithComputedStatus) {
+    auto http = client();
+    const std::string subscriber_id = create_subscriber(http, unique_static_ip());
+    const std::string plan_id = create_plan(http);
+    // kToday is 2026-10-02, so a 2026-12-01 due date leaves the contract active.
+    const std::string active_id = create_contract(http, subscriber_id, plan_id, "2026-12-01");
+    const std::string overdue_id = create_contract(http, subscriber_id, plan_id, "2026-10-01");
+
+    const auto list = http.Get("/api/contracts");
+    ASSERT_EQ(list->status, 200);
+    const auto entries = body(list);
+    ASSERT_TRUE(entries.is_array());
+    ASSERT_GE(entries.size(), 2U);
+
+    std::map<std::string, std::string> statuses;
+    for (const auto& entry : entries) {
+        statuses[entry.at("id").get<std::string>()] = entry.at("status").get<std::string>();
+    }
+    EXPECT_EQ(statuses.at(active_id), "active");
+    EXPECT_EQ(statuses.at(overdue_id), "overdue");
+    EXPECT_EQ(statuses.size(), entries.size());
 }
 
 TEST_F(ApiHttpTest, HealthReportsOkWhenDatabaseIsUp) {

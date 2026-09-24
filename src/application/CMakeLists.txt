@@ -10,6 +10,7 @@ add_library(inerxia_application STATIC
     use_cases/get_contract.cpp
     use_cases/get_plan.cpp
     use_cases/get_subscriber.cpp
+    use_cases/list_contracts.cpp
     use_cases/list_subscribers.cpp
     use_cases/reactivate_contract.cpp
     use_cases/register_payment.cpp

@@ -28,7 +28,8 @@ ContractController::ContractController(
     application::UpdateContract& update, application::SuspendContract& suspend,
     application::ReactivateContract& reactivate, application::ChangeSpeedProfile& change_speed,
     application::RegisterPayment& register_payment,
-    application::EvaluateExpiredContracts& evaluate)
+    application::EvaluateExpiredContracts& evaluate,
+    application::ListContracts& list_contracts)
     : create_(create),
       get_(get),
       update_(update),
@@ -36,7 +37,8 @@ ContractController::ContractController(
       reactivate_(reactivate),
       change_speed_(change_speed),
       register_payment_(register_payment),
-      evaluate_(evaluate) {}
+      evaluate_(evaluate),
+      list_contracts_(list_contracts) {}
 
 void ContractController::register_routes(httplib::Server& server) {
     // More specific paths are registered before the generic {id} captures so
@@ -68,6 +70,9 @@ void ContractController::register_routes(httplib::Server& server) {
     server.Post("/api/contracts", [this](const httplib::Request& req, httplib::Response& res) {
         handle_create(req, res);
     });
+    server.Get("/api/contracts", [this](const httplib::Request& req, httplib::Response& res) {
+        handle_list(req, res);
+    });
     server.Get("/api/contracts/([^/]+)",
                [this](const httplib::Request& req, httplib::Response& res) {
                    handle_get(req, res);
@@ -91,6 +96,16 @@ void ContractController::handle_create(const httplib::Request& request,
             set_contract_response(get_, contract.id(), response, 201);
         },
         response);
+}
+
+void ContractController::handle_list(const httplib::Request&, httplib::Response& response) const {
+    const auto snapshots = list_contracts_();
+    nlohmann::json entries = nlohmann::json::array();
+    for (const auto& snapshot : snapshots) {
+        entries.push_back(to_json(to_view(snapshot.contract, snapshot.status)));
+    }
+    response.status = 200;
+    response.set_content(entries.dump(), "application/json");
 }
 
 void ContractController::handle_get(const httplib::Request& request,

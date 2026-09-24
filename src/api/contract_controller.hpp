@@ -6,6 +6,7 @@
 #include "application/use_cases/create_contract.hpp"
 #include "application/use_cases/evaluate_expired_contracts.hpp"
 #include "application/use_cases/get_contract.hpp"
+#include "application/use_cases/list_contracts.hpp"
 #include "application/use_cases/reactivate_contract.hpp"
 #include "application/use_cases/register_payment.hpp"
 #include "application/use_cases/suspend_contract.hpp"
@@ -23,12 +24,14 @@ public:
                        application::ReactivateContract& reactivate,
                        application::ChangeSpeedProfile& change_speed,
                        application::RegisterPayment& register_payment,
-                       application::EvaluateExpiredContracts& evaluate);
+                       application::EvaluateExpiredContracts& evaluate,
+                       application::ListContracts& list_contracts);
 
     void register_routes(httplib::Server& server);
 
 private:
     void handle_create(const httplib::Request&, httplib::Response&) const;
+    void handle_list(const httplib::Request&, httplib::Response&) const;
     void handle_get(const httplib::Request&, httplib::Response&) const;
     void handle_update(const httplib::Request&, httplib::Response&) const;
     void handle_suspend(const httplib::Request&, httplib::Response&) const;
@@ -45,6 +48,7 @@ private:
     application::ChangeSpeedProfile& change_speed_;
     application::RegisterPayment& register_payment_;
     application::EvaluateExpiredContracts& evaluate_;
+    application::ListContracts& list_contracts_;
 };
 
 }  // namespace inerxia::api

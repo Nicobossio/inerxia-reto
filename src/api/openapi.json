@@ -40,7 +40,9 @@
   "paths": {
     "/api/health": {
       "get": {
-        "tags": ["health"],
+        "tags": [
+          "health"
+        ],
         "summary": "Health probe",
         "description": "Returns 200 when PostgreSQL is reachable; 503 otherwise.",
         "operationId": "getHealth",
@@ -49,7 +51,9 @@
             "description": "API and database are healthy",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
               }
             }
           },
@@ -57,7 +61,9 @@
             "description": "PostgreSQL (or the API) is unavailable",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
               }
             }
           }
@@ -66,7 +72,9 @@
     },
     "/api/subscribers": {
       "get": {
-        "tags": ["subscribers"],
+        "tags": [
+          "subscribers"
+        ],
         "summary": "List subscribers (inventory)",
         "description": "Returns every registered ISP user. Called \"inventory\" by the operator dashboard.",
         "operationId": "listSubscribers",
@@ -77,7 +85,9 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/SubscriberView" }
+                  "items": {
+                    "$ref": "#/components/schemas/SubscriberView"
+                  }
                 }
               }
             }
@@ -85,7 +95,9 @@
         }
       },
       "post": {
-        "tags": ["subscribers"],
+        "tags": [
+          "subscribers"
+        ],
         "summary": "Create a subscriber",
         "description": "Creates an ISP user with a static IP address (IPv4). The service assigns the id.",
         "operationId": "createSubscriber",
@@ -93,7 +105,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/SubscriberRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/SubscriberRequest"
+              }
             }
           }
         },
@@ -102,18 +116,26 @@
             "description": "Subscriber created",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SubscriberView" }
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriberView"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "422": { "$ref": "#/components/responses/DomainRule" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainRule"
+          }
         }
       }
     },
     "/api/subscribers/{id}": {
       "get": {
-        "tags": ["subscribers"],
+        "tags": [
+          "subscribers"
+        ],
         "summary": "Get a subscriber",
         "operationId": "getSubscriber",
         "parameters": [
@@ -121,7 +143,9 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "$ref": "#/components/schemas/Id" }
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
           }
         ],
         "responses": {
@@ -129,17 +153,23 @@
             "description": "Subscriber found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SubscriberView" }
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriberView"
+                }
               }
             }
           },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
         }
       }
     },
     "/api/plans": {
       "post": {
-        "tags": ["plans"],
+        "tags": [
+          "plans"
+        ],
         "summary": "Create an internet plan",
         "description": "Creates a speed/price plan. The service assigns the id.",
         "operationId": "createPlan",
@@ -147,7 +177,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PlanRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequest"
+              }
             }
           }
         },
@@ -156,18 +188,26 @@
             "description": "Plan created",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/PlanView" }
+                "schema": {
+                  "$ref": "#/components/schemas/PlanView"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "422": { "$ref": "#/components/responses/DomainRule" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainRule"
+          }
         }
       }
     },
     "/api/plans/{id}": {
       "get": {
-        "tags": ["plans"],
+        "tags": [
+          "plans"
+        ],
         "summary": "Get an internet plan",
         "operationId": "getPlan",
         "parameters": [
@@ -175,7 +215,9 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "$ref": "#/components/schemas/Id" }
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
           }
         ],
         "responses": {
@@ -183,17 +225,23 @@
             "description": "Plan found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/PlanView" }
+                "schema": {
+                  "$ref": "#/components/schemas/PlanView"
+                }
               }
             }
           },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
         }
       }
     },
     "/api/contracts": {
       "post": {
-        "tags": ["contracts"],
+        "tags": [
+          "contracts"
+        ],
         "summary": "Create a contract",
         "description": "Assigns a plan to a subscriber, snapping the plan's speed and price into the contract, with a billing start date and a due date. The service assigns the id.",
         "operationId": "createContract",
@@ -201,7 +249,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ContractRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/ContractRequest"
+              }
             }
           }
         },
@@ -210,19 +260,52 @@
             "description": "Contract created",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ContractView" }
+                "schema": {
+                  "$ref": "#/components/schemas/ContractView"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/DomainRule" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainRule"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "contracts"
+        ],
+        "summary": "List every contract with its computed status",
+        "description": "Read-model listing of all contracts. The status is derived from today's date (from the server clock) and the due date/suspension state, matching what the operator dashboard shows in the lifecycle table.",
+        "operationId": "listContracts",
+        "responses": {
+          "200": {
+            "description": "Contracts listed (each with computed status)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContractView"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
     "/api/contracts/{id}": {
       "get": {
-        "tags": ["contracts"],
+        "tags": [
+          "contracts"
+        ],
         "summary": "Get a contract",
         "description": "Returns the contract aggregate with its computed status (active/overdue/suspended) as of today and its registered payments.",
         "operationId": "getContract",
@@ -231,7 +314,9 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "$ref": "#/components/schemas/Id" }
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
           }
         ],
         "responses": {
@@ -239,15 +324,21 @@
             "description": "Contract found",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ContractView" }
+                "schema": {
+                  "$ref": "#/components/schemas/ContractView"
+                }
               }
             }
           },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
         }
       },
       "put": {
-        "tags": ["contracts"],
+        "tags": [
+          "contracts"
+        ],
         "summary": "Edit a contract (reschedule due date)",
         "description": "Idempotently reschedules the contract's due date. Contract fields other than the due date are not editable.",
         "operationId": "updateContract",
@@ -256,14 +347,18 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "$ref": "#/components/schemas/Id" }
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/RescheduleRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/RescheduleRequest"
+              }
             }
           }
         },
@@ -272,19 +367,29 @@
             "description": "Contract updated",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ContractView" }
+                "schema": {
+                  "$ref": "#/components/schemas/ContractView"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/DomainRule" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainRule"
+          }
         }
       }
     },
     "/api/contracts/{id}/suspend": {
       "post": {
-        "tags": ["contracts"],
+        "tags": [
+          "contracts"
+        ],
         "summary": "Suspend a contract",
         "description": "Manually suspends the contract and disables the subscriber's service on the router.",
         "operationId": "suspendContract",
@@ -293,7 +398,9 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "$ref": "#/components/schemas/Id" }
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
           }
         ],
         "responses": {
@@ -301,19 +408,29 @@
             "description": "Contract suspended",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ContractView" }
+                "schema": {
+                  "$ref": "#/components/schemas/ContractView"
+                }
               }
             }
           },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/DomainRule" },
-          "503": { "$ref": "#/components/responses/Infrastructure" }
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainRule"
+          },
+          "503": {
+            "$ref": "#/components/responses/Infrastructure"
+          }
         }
       }
     },
     "/api/contracts/{id}/reactivate": {
       "post": {
-        "tags": ["contracts"],
+        "tags": [
+          "contracts"
+        ],
         "summary": "Reactivate a contract",
         "description": "Reactivates a suspended contract and re-enables the subscriber's service on the router.",
         "operationId": "reactivateContract",
@@ -322,7 +439,9 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "$ref": "#/components/schemas/Id" }
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
           }
         ],
         "responses": {
@@ -330,19 +449,29 @@
             "description": "Contract reactivated",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ContractView" }
+                "schema": {
+                  "$ref": "#/components/schemas/ContractView"
+                }
               }
             }
           },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/DomainRule" },
-          "503": { "$ref": "#/components/responses/Infrastructure" }
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainRule"
+          },
+          "503": {
+            "$ref": "#/components/responses/Infrastructure"
+          }
         }
       }
     },
     "/api/contracts/{id}/payments": {
       "post": {
-        "tags": ["contracts"],
+        "tags": [
+          "contracts"
+        ],
         "summary": "Register a payment",
         "description": "Registers a manual payment for the contract. If the payment clears the debt of an automatically suspended contract, the service is re-enabled on the router.",
         "operationId": "registerPayment",
@@ -351,14 +480,18 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "$ref": "#/components/schemas/Id" }
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/PaymentRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/PaymentRequest"
+              }
             }
           }
         },
@@ -367,20 +500,32 @@
             "description": "Payment registered",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/PaymentView" }
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentView"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/DomainRule" },
-          "503": { "$ref": "#/components/responses/Infrastructure" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainRule"
+          },
+          "503": {
+            "$ref": "#/components/responses/Infrastructure"
+          }
         }
       }
     },
     "/api/contracts/{id}/speed-profile": {
       "patch": {
-        "tags": ["contracts"],
+        "tags": [
+          "contracts"
+        ],
         "summary": "Change the subscriber's speed profile",
         "description": "Updates the contract's download/upload speed and applies the new cap on the router (no-op on the router when the profile is unchanged).",
         "operationId": "changeSpeedProfile",
@@ -389,14 +534,18 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "$ref": "#/components/schemas/Id" }
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/SpeedProfileRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/SpeedProfileRequest"
+              }
             }
           }
         },
@@ -405,20 +554,32 @@
             "description": "Speed profile updated",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ContractView" }
+                "schema": {
+                  "$ref": "#/components/schemas/ContractView"
+                }
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "404": { "$ref": "#/components/responses/NotFound" },
-          "422": { "$ref": "#/components/responses/DomainRule" },
-          "503": { "$ref": "#/components/responses/Infrastructure" }
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainRule"
+          },
+          "503": {
+            "$ref": "#/components/responses/Infrastructure"
+          }
         }
       }
     },
     "/api/sweep/expired": {
       "post": {
-        "tags": ["contracts"],
+        "tags": [
+          "contracts"
+        ],
         "summary": "Run the due-date sweep",
         "description": "Automatically suspends every contract whose due date has passed without payment, disabling those services on the router. Idempotent: already suspended contracts are skipped.",
         "operationId": "evaluateExpiredContracts",
@@ -427,17 +588,23 @@
             "description": "Sweep finished",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SweepResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SweepResponse"
+                }
               }
             }
           },
-          "503": { "$ref": "#/components/responses/Infrastructure" }
+          "503": {
+            "$ref": "#/components/responses/Infrastructure"
+          }
         }
       }
     },
     "/api/auth/register": {
       "post": {
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "summary": "Register an operator",
         "description": "Creates a new operator account (username 3-32 chars, lowercase [a-z0-9._-], password at least 8 chars) and returns the normalized username. Public, no token required. Passwords are stored only as a PBKDF2-HMAC-SHA256 hash.",
         "operationId": "registerOperator",
@@ -447,10 +614,20 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["username", "password"],
+                "required": [
+                  "username",
+                  "password"
+                ],
                 "properties": {
-                  "username": { "type": "string", "example": "nadia"},
-                  "password": { "type": "string", "format": "password", "example": "s3cret" }
+                  "username": {
+                    "type": "string",
+                    "example": "nadia"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "s3cret"
+                  }
                 }
               }
             }
@@ -463,9 +640,14 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["username"],
+                  "required": [
+                    "username"
+                  ],
                   "properties": {
-                    "username": { "type": "string", "description": "Normalized username" }
+                    "username": {
+                      "type": "string",
+                      "description": "Normalized username"
+                    }
                   }
                 }
               }
@@ -475,7 +657,9 @@
             "description": "Username already registered",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
               }
             }
           },
@@ -483,7 +667,9 @@
             "description": "Username or password does not meet the registration rules",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
               }
             }
           }
@@ -492,7 +678,9 @@
     },
     "/api/auth/login": {
       "post": {
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "summary": "Operator login",
         "description": "Validates the operator credentials against the user database and returns a bearer session token. Private /api/* routes require it.",
         "operationId": "operatorLogin",
@@ -502,10 +690,20 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["username", "password"],
+                "required": [
+                  "username",
+                  "password"
+                ],
                 "properties": {
-                  "username": { "type": "string", "example": "nadia" },
-                  "password": { "type": "string", "format": "password", "example": "s3cret" }
+                  "username": {
+                    "type": "string",
+                    "example": "nadia"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "s3cret"
+                  }
                 }
               }
             }
@@ -518,10 +716,18 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["token", "username"],
+                  "required": [
+                    "token",
+                    "username"
+                  ],
                   "properties": {
-                    "token": { "type": "string", "description": "Opaque bearer token (Authorization: Bearer <token>)" },
-                    "username": { "type": "string" }
+                    "token": {
+                      "type": "string",
+                      "description": "Opaque bearer token (Authorization: Bearer <token>)"
+                    },
+                    "username": {
+                      "type": "string"
+                    }
                   }
                 }
               }
@@ -531,7 +737,9 @@
             "description": "Invalid credentials",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
               }
             }
           }
@@ -540,18 +748,24 @@
     },
     "/api/auth/logout": {
       "post": {
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "summary": "Operator logout",
         "description": "Revokes the presented bearer token, if any.",
         "operationId": "operatorLogout",
         "responses": {
-          "204": { "description": "Session revoked" }
+          "204": {
+            "description": "Session revoked"
+          }
         }
       }
     },
     "/api/auth/me": {
       "get": {
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "summary": "Current session",
         "description": "Reports whether a valid operator session is active for the presented bearer token. Public: answers 401 when the token is missing or invalid.",
         "operationId": "currentSession",
@@ -562,22 +776,32 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["authenticated"],
+                  "required": [
+                    "authenticated"
+                  ],
                   "properties": {
-                    "authenticated": { "type": "boolean" },
-                    "username": { "type": "string" }
+                    "authenticated": {
+                      "type": "boolean"
+                    },
+                    "username": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
         }
       }
     },
     "/api/audit": {
       "get": {
-        "tags": ["audit"],
+        "tags": [
+          "audit"
+        ],
         "summary": "Change audit trail",
         "description": "Lists the recorded changes (actor, method, path, HTTP status, moment) newest first. Requires a valid admin session when authentication is enabled.",
         "operationId": "listAudit",
@@ -586,7 +810,12 @@
             "name": "limit",
             "in": "query",
             "required": false,
-            "schema": { "type": "integer", "minimum": 1, "maximum": 500, "default": 50 },
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 50
+            },
             "description": "Maximum number of entries (default 50, capped at 500)"
           }
         ],
@@ -597,12 +826,16 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/AuditEntryView" }
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntryView"
+                  }
                 }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" }
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
         }
       }
     }
@@ -613,7 +846,9 @@
         "description": "Malformed JSON or invalid request input",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       },
@@ -621,7 +856,9 @@
         "description": "The requested resource does not exist",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       },
@@ -629,7 +866,9 @@
         "description": "The operation violates a domain rule (e.g. reschedule before billing start, suspend an already suspended contract)",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       },
@@ -637,7 +876,9 @@
         "description": "PostgreSQL or the MikroTik router is unavailable. For router-backed operations the domain mutation is persisted first, so a retry is safe (idempotent).",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       },
@@ -645,7 +886,9 @@
         "description": "Missing or invalid admin session token (when authentication is enabled)",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Error" }
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
           }
         }
       }
@@ -663,20 +906,37 @@
       },
       "Error": {
         "type": "object",
-        "required": ["error", "message"],
+        "required": [
+          "error",
+          "message"
+        ],
         "properties": {
           "error": {
             "type": "string",
-            "enum": ["bad_request", "not_found", "domain_rule", "infrastructure", "internal"]
+            "enum": [
+              "bad_request",
+              "not_found",
+              "domain_rule",
+              "infrastructure",
+              "internal"
+            ]
           },
-          "message": { "type": "string" }
+          "message": {
+            "type": "string"
+          }
         }
       },
       "SubscriberRequest": {
         "type": "object",
-        "required": ["name", "static_ip"],
+        "required": [
+          "name",
+          "static_ip"
+        ],
         "properties": {
-          "name": { "type": "string", "example": "Ana García" },
+          "name": {
+            "type": "string",
+            "example": "Ana Garc\u00eda"
+          },
           "static_ip": {
             "type": "string",
             "format": "ipv4",
@@ -688,44 +948,97 @@
       "SubscriberView": {
         "type": "object",
         "properties": {
-          "id": { "$ref": "#/components/schemas/Id" },
-          "name": { "type": "string" },
-          "static_ip": { "type": "string" }
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "name": {
+            "type": "string"
+          },
+          "static_ip": {
+            "type": "string"
+          }
         }
       },
       "PlanRequest": {
         "type": "object",
-        "required": ["name", "download_mbps", "upload_mbps", "monthly_price_cents"],
+        "required": [
+          "name",
+          "download_mbps",
+          "upload_mbps",
+          "monthly_price_cents"
+        ],
         "properties": {
-          "name": { "type": "string", "example": "Fibra 300" },
-          "download_mbps": { "type": "integer", "minimum": 1, "example": 300 },
-          "upload_mbps": { "type": "integer", "minimum": 1, "example": 150 },
-          "monthly_price_cents": { "type": "integer", "format": "int64", "minimum": 1, "example": 15000 }
+          "name": {
+            "type": "string",
+            "example": "Fibra 300"
+          },
+          "download_mbps": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 300
+          },
+          "upload_mbps": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 150
+          },
+          "monthly_price_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "example": 15000
+          }
         }
       },
       "PlanView": {
         "type": "object",
         "properties": {
-          "id": { "$ref": "#/components/schemas/Id" },
-          "name": { "type": "string" },
-          "download_mbps": { "type": "integer" },
-          "upload_mbps": { "type": "integer" },
-          "monthly_price_cents": { "type": "integer", "format": "int64" }
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "name": {
+            "type": "string"
+          },
+          "download_mbps": {
+            "type": "integer"
+          },
+          "upload_mbps": {
+            "type": "integer"
+          },
+          "monthly_price_cents": {
+            "type": "integer",
+            "format": "int64"
+          }
         }
       },
       "ContractRequest": {
         "type": "object",
-        "required": ["subscriber_id", "plan_id", "billing_start", "due_date"],
+        "required": [
+          "subscriber_id",
+          "plan_id",
+          "billing_start",
+          "due_date"
+        ],
         "properties": {
-          "subscriber_id": { "$ref": "#/components/schemas/Id" },
-          "plan_id": { "$ref": "#/components/schemas/Id" },
-          "billing_start": { "$ref": "#/components/schemas/Date" },
-          "due_date": { "$ref": "#/components/schemas/Date" }
+          "subscriber_id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "billing_start": {
+            "$ref": "#/components/schemas/Date"
+          },
+          "due_date": {
+            "$ref": "#/components/schemas/Date"
+          }
         }
       },
       "RescheduleRequest": {
         "type": "object",
-        "required": ["due_date"],
+        "required": [
+          "due_date"
+        ],
         "properties": {
           "due_date": {
             "$ref": "#/components/schemas/Date",
@@ -735,17 +1048,36 @@
       },
       "SpeedProfileRequest": {
         "type": "object",
-        "required": ["download_mbps", "upload_mbps"],
+        "required": [
+          "download_mbps",
+          "upload_mbps"
+        ],
         "properties": {
-          "download_mbps": { "type": "integer", "minimum": 1, "example": 600 },
-          "upload_mbps": { "type": "integer", "minimum": 1, "example": 300 }
+          "download_mbps": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 600
+          },
+          "upload_mbps": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 300
+          }
         }
       },
       "PaymentRequest": {
         "type": "object",
-        "required": ["amount_cents", "paid_on"],
+        "required": [
+          "amount_cents",
+          "paid_on"
+        ],
         "properties": {
-          "amount_cents": { "type": "integer", "format": "int64", "minimum": 1, "example": 15000 },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "example": 15000
+          },
           "paid_on": {
             "$ref": "#/components/schemas/Date",
             "description": "Date the payment was made"
@@ -755,39 +1087,80 @@
       "PaymentView": {
         "type": "object",
         "properties": {
-          "id": { "$ref": "#/components/schemas/Id" },
-          "contract_id": { "$ref": "#/components/schemas/Id" },
-          "amount_cents": { "type": "integer", "format": "int64" },
-          "registered_on": { "$ref": "#/components/schemas/Date" }
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "contract_id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "registered_on": {
+            "$ref": "#/components/schemas/Date"
+          }
         }
       },
       "ContractStatus": {
         "type": "string",
-        "enum": ["active", "overdue", "suspended"]
+        "enum": [
+          "active",
+          "overdue",
+          "suspended"
+        ]
       },
       "ContractView": {
         "type": "object",
         "properties": {
-          "id": { "$ref": "#/components/schemas/Id" },
-          "subscriber_id": { "$ref": "#/components/schemas/Id" },
-          "plan_id": { "$ref": "#/components/schemas/Id" },
-          "download_mbps": { "type": "integer" },
-          "upload_mbps": { "type": "integer" },
-          "billing_start": { "$ref": "#/components/schemas/Date" },
-          "due_date": { "$ref": "#/components/schemas/Date" },
-          "price_per_period_cents": { "type": "integer", "format": "int64" },
-          "suspended": { "type": "boolean" },
-          "status": { "$ref": "#/components/schemas/ContractStatus" },
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "subscriber_id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "download_mbps": {
+            "type": "integer"
+          },
+          "upload_mbps": {
+            "type": "integer"
+          },
+          "billing_start": {
+            "$ref": "#/components/schemas/Date"
+          },
+          "due_date": {
+            "$ref": "#/components/schemas/Date"
+          },
+          "price_per_period_cents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "suspended": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ContractStatus"
+          },
           "payments": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/PaymentView" }
+            "items": {
+              "$ref": "#/components/schemas/PaymentView"
+            }
           }
         }
       },
       "HealthResponse": {
         "type": "object",
         "properties": {
-          "status": { "type": "string", "enum": ["ok"] }
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          }
         }
       },
       "SweepResponse": {
@@ -795,20 +1168,43 @@
         "properties": {
           "suspended_contract_ids": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/Id" }
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
           }
         }
       },
       "AuditEntryView": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "description": "Storage-assigned identifier" },
-          "occurred_at": { "type": "string", "format": "date-time", "example": "2026-10-02T14:03:00Z" },
-          "actor": { "type": "string", "example": "admin" },
-          "method": { "type": "string", "example": "POST" },
-          "path": { "type": "string", "example": "/api/contracts" },
-          "status": { "type": "integer", "example": 201 },
-          "detail": { "type": "string" }
+          "id": {
+            "type": "string",
+            "description": "Storage-assigned identifier"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-02T14:03:00Z"
+          },
+          "actor": {
+            "type": "string",
+            "example": "admin"
+          },
+          "method": {
+            "type": "string",
+            "example": "POST"
+          },
+          "path": {
+            "type": "string",
+            "example": "/api/contracts"
+          },
+          "status": {
+            "type": "integer",
+            "example": 201
+          },
+          "detail": {
+            "type": "string"
+          }
         }
       }
     },

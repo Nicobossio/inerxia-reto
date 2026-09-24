@@ -10,6 +10,7 @@
 #include "application/use_cases/get_contract.hpp"
 #include "application/use_cases/get_plan.hpp"
 #include "application/use_cases/get_subscriber.hpp"
+#include "application/use_cases/list_contracts.hpp"
 #include "application/use_cases/list_subscribers.hpp"
 #include "application/use_cases/reactivate_contract.hpp"
 #include "application/use_cases/register_payment.hpp"
@@ -38,6 +39,7 @@ struct AppServices {
     application::GetPlan get_plan;
     application::CreateContract create_contract;
     application::GetContract get_contract;
+    application::ListContracts list_contracts;
     application::UpdateContract update_contract;
     application::SuspendContract suspend_contract;
     application::ReactivateContract reactivate_contract;
@@ -58,6 +60,7 @@ struct AppServices {
           get_plan{plans},
           create_contract{contracts, subscribers, plans},
           get_contract{contracts, clock},
+          list_contracts{contracts, clock},
           update_contract{contracts},
           suspend_contract{contracts, subscribers, router},
           reactivate_contract{contracts, subscribers, router},
