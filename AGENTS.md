@@ -135,7 +135,11 @@ ctest --test-dir build -L api
 # Run the HTTP API server (fail-fast: requires PostgreSQL + MikroTik credentials).
 export PGUSER=inerxia PGPASSWORD=CHANGE_ME PGDATABASE=inerxia
 export MIKROTIK_BASE_URL=... MIKROTIK_USER=... MIKROTIK_PASSWORD=...
-# API_HOST/API_PORT optional (default 127.0.0.1:8484)
+# API_HOST/API_PORT optional (default 127.0.0.1:8484).
+# Local domain: `inerxia.local` maps to 127.0.0.1 in the Windows hosts file
+# (added via an elevated PowerShell; consult `# inerxia.local`). Open the
+# dashboard at http://inerxia.local:8484 — resolution is client-side only,
+# so the server still binds the loopback address from API_HOST.
 # SWEEP_INTERVAL_MS optional (default 60000; 0 disables the automatic sweep)
 # AUTH_SESSION_TTL_MS optional (default 43200000) — session lifetime for
 # operators registered through POST /api/auth/register.

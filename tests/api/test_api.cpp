@@ -512,16 +512,16 @@ TEST_F(ApiHttpTest, UiDashboardIsServed) {
     ASSERT_EQ(response->status, 200);
     EXPECT_NE(response->get_header_value("Content-Type").find("text/html"),
               std::string::npos);
-    // The dashboard must offer a button for every life-cycle operation.
-    EXPECT_NE(response->body.find("Crear contrato"), std::string::npos);
-    EXPECT_NE(response->body.find("Contrato id"), std::string::npos);
+    // The dashboard must offer a control for every life-cycle operation.
+    EXPECT_NE(response->body.find("Crear cliente"), std::string::npos);
+    EXPECT_NE(response->body.find("id del contrato"), std::string::npos);
     EXPECT_NE(response->body.find("Suspender"), std::string::npos);
     EXPECT_NE(response->body.find("Reactivar"), std::string::npos);
     EXPECT_NE(response->body.find("Registrar pago"), std::string::npos);
     EXPECT_NE(response->body.find("/api/contracts/"), std::string::npos);
-    // Admin session, subscriber inventory and the change audit are all present.
-    EXPECT_NE(response->body.find("Inventario de usuarios"), std::string::npos);
-    EXPECT_NE(response->body.find("Auditor&iacute;a de cambios"), std::string::npos);
+    // Operator session, subscriber inventory and the change audit are all present.
+    EXPECT_NE(response->body.find("Inventario"), std::string::npos);
+    EXPECT_NE(response->body.find("Auditoría"), std::string::npos);
     EXPECT_NE(response->body.find("runLogin"), std::string::npos);
     EXPECT_NE(response->body.find("runRefreshAudit"), std::string::npos);
     EXPECT_NE(response->body.find("Authorization"), std::string::npos);

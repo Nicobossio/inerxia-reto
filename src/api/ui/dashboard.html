@@ -22,27 +22,29 @@
   }
   header h1 { font-size: 18px; margin: 0; }
   header .spacer { flex: 1; }
-  .pill {
-    border: 1px solid var(--line); border-radius: 999px;
-    padding: 4px 12px; font-size: 12px; color: var(--muted); background: var(--panel);
-  }
-  .pill.ok { color: var(--ok); border-color: var(--ok); }
-  .pill.err { color: var(--err); border-color: var(--err); }
   a { color: var(--acc); text-decoration: none; }
   main { max-width: 1280px; margin: 0 auto; padding: 0 18px; }
-  .grid { display: grid; grid-template-columns: 1fr 420px; gap: 18px; margin: 18px 0; }
-  @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
-  .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
-  .tab {
-    background: var(--panel); color: var(--muted); border: 1px solid var(--line);
-    border-radius: 999px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+  .grid { margin: 18px 0; }
+  #status {
+    position: fixed; top: 18px; right: 18px; z-index: 50;
+    max-width: 320px; padding: 12px 16px; border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--line);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .4); font-size: 13px; color: var(--ink);
+    opacity: 0; transform: translateY(-8px); pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
   }
-  .tab:hover { color: var(--ink); border-color: var(--acc); }
-  .tab.active { color: #fff; background: var(--acc); border-color: var(--acc); }
-  .status { min-height: 18px; font-size: 12px; color: var(--muted); margin: 10px 2px 0; }
-  .status.err { color: var(--err); }
-  .status.ok { color: var(--ok); }
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-content: start; }
+  #status.show { opacity: 1; transform: translateY(0); }
+  #status.ok { border-color: var(--ok); color: var(--ok); }
+  #status.err { border-color: var(--err); color: var(--err); }
+  nav.top { display: flex; gap: 2px; flex-wrap: wrap; }
+  .navlink {
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    border-radius: 6px; color: var(--muted); padding: 8px 12px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .navlink:hover { color: var(--ink); background: var(--panel2); }
+  .navlink.active { color: var(--acc); border-bottom-color: var(--acc); background: transparent; }
+  .cards { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; max-width: 980px; margin: 0 auto; }
   .card {
     background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
     padding: 14px 16px;
@@ -77,12 +79,6 @@
   .badge.active { color: var(--ok); border-color: var(--ok); }
   .badge.suspended { color: var(--err); border-color: var(--err); }
   .badge.overdue { color: var(--warn); border-color: var(--warn); }
-  .side { display: flex; flex-direction: column; gap: 14px; }
-  .ids {
-    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px;
-    display: grid; gap: 6px;
-  }
-  .ids div span { color: var(--muted); }
   .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
   .hint code { background: var(--panel2); padding: 1px 5px; border-radius: 5px; }
   #landing {
@@ -100,11 +96,18 @@
 </head>
 <body>
 <header id="topbar">
-  <div>
-    <h1>Inerxia</h1>
-  </div>
+  <h1>Inerxia</h1>
+  <nav class="top" id="viewNav">
+    <button class="navlink active" data-view="view-client" onclick="switchView('view-client')">Cliente</button>
+    <button class="navlink" data-view="view-contract" onclick="switchView('view-contract')">Contrato</button>
+    <button class="navlink" data-view="view-lifecycle" onclick="switchView('view-lifecycle')">Ciclo de vida</button>
+    <button class="navlink" data-view="view-payments" onclick="switchView('view-payments')">Pagos</button>
+    <button class="navlink" data-view="view-speed" onclick="switchView('view-speed')">Velocidad</button>
+    <button class="navlink" data-view="view-auto" onclick="switchView('view-auto')">Autom&aacute;tico</button>
+    <button class="navlink" data-view="view-inventory" onclick="switchView('view-inventory')">Inventario</button>
+    <button class="navlink" data-view="view-audit" onclick="switchView('view-audit')">Auditor&iacute;a</button>
+  </nav>
   <div class="spacer"></div>
-  <span class="pill" id="userPill">sesi&oacute;n &hellip;</span>
   <button class="ghost" id="logoutBtn" onclick="runLogout()" style="display:none">Salir</button>
 </header>
 
@@ -124,142 +127,116 @@
 </section>
 
 <main id="platform" style="display:none">
-  <nav class="tabs" id="viewTabs">
-    <button class="tab active" data-view="view-subscriber" onclick="switchView('view-subscriber')">Suscriptor</button>
-    <button class="tab" data-view="view-plan" onclick="switchView('view-plan')">Plan de internet</button>
-    <button class="tab" data-view="view-contract" onclick="switchView('view-contract')">Contrato</button>
-    <button class="tab" data-view="view-lifecycle" onclick="switchView('view-lifecycle')">Ciclo de vida</button>
-    <button class="tab" data-view="view-payments" onclick="switchView('view-payments')">Pagos</button>
-    <button class="tab" data-view="view-speed" onclick="switchView('view-speed')">Velocidad</button>
-    <button class="tab" data-view="view-auto" onclick="switchView('view-auto')">Autom&aacute;tico</button>
-    <button class="tab" data-view="view-inventory" onclick="switchView('view-inventory')">Inventario</button>
-    <button class="tab" data-view="view-audit" onclick="switchView('view-audit')">Auditor&iacute;a</button>
-  </nav>
   <div id="status" class="status"></div>
   <div class="grid">
   <section class="cards">
-    <div class="card view" id="view-subscriber">
-      <h2>1 &middot; Suscriptor</h2>
-      <div class="field"><label>Nombre</label><input id="subName" value="Ana García"></div>
-      <div class="field"><label>IP estática</label><input id="subIp" value="10.99.20.10"></div>
-      <button onclick="runCreateSubscriber()">Crear suscriptor</button>
-      <div class="hint">IP fija asignada en el router (unidad del suscriptor).</div>
+    <div class="card view" id="view-client">
+      <h2>Cliente</h2>
+      <div class="row">
+        <div class="field" style="flex:1"><label>Nombre</label><input id="cliName" value="Ana García"></div>
+        <div class="field" style="flex:1"><label>IP estática</label><input id="cliIp" value="10.99.20.10"></div>
+      </div>
+      <div class="field"><label>Plan</label><input id="cliPlanName" value="Fibra 300"></div>
+      <div class="row">
+        <div class="field" style="flex:1"><label>Bajada Mbps</label><input id="cliDown" type="number" value="300"></div>
+        <div class="field" style="flex:1"><label>Subida Mbps</label><input id="cliUp" type="number" value="150"></div>
+        <div class="field" style="flex:1"><label>Precio mensual (€)</label><input id="cliPrice" type="number" value="15000"></div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex:1"><label>Inicio de facturación</label><input id="cliStart" type="date" value="2026-08-01"></div>
+        <div class="field" style="flex:1"><label>Vencimiento</label><input id="cliDue" type="date" value="2026-11-30"></div>
+      </div>
+      <button onclick="runCreateClient()">Crear cliente</button>
     </div>
 
-    <div class="card view" id="view-plan" style="display:none">
-      <h2>2 &middot; Plan de internet</h2>
-      <div class="field"><label>Nombre</label><input id="planName" value="Fibra 300"></div>
+    <div class="card view" id="view-contract">
+      <h2>Contrato</h2>
       <div class="row">
-        <div class="field" style="flex:1"><label>Bajada Mbps</label><input id="planDown" type="number" value="300"></div>
-        <div class="field" style="flex:1"><label>Subida Mbps</label><input id="planUp" type="number" value="150"></div>
+        <div class="field" style="flex:2"><label>Contrato</label><input id="edtId" placeholder="id del contrato"></div>
+        <div class="field" style="flex:1"><label>Nuevo vencimiento</label><input id="edtDue" type="date" value="2026-12-31"></div>
       </div>
-      <div class="field"><label>Precio mensual (céntimos)</label><input id="planPrice" type="number" value="15000"></div>
-      <button onclick="runCreatePlan()">Crear plan</button>
+      <div class="row">
+        <button onclick="runGetContract()">Consultar</button>
+        <button class="ghost" onclick="runReschedule()">Guardar cambios</button>
+      </div>
+      <div id="ctrInfo" class="scroll" style="margin-top:12px">
+        <div style="padding:10px;font-size:12px;color:var(--muted)">
+          Introduce un id de contrato y pulsa «Consultar» para ver el detalle.
+        </div>
+      </div>
     </div>
 
-    <div class="card view" id="view-contract" style="display:none">
-      <h2>3 &middot; Contrato</h2>
-      <div class="row">
-        <div class="field" style="flex:2"><label>Suscriptor id</label><input id="ctrSub"></div>
-        <div class="field" style="flex:2"><label>Plan id</label><input id="ctrPlan"></div>
-      </div>
-      <div class="row">
-        <div class="field" style="flex:1"><label>Inicio facturación</label><input id="ctrStart" type="date" value="2026-08-01"></div>
-        <div class="field" style="flex:1"><label>Vence</label><input id="ctrDue" type="date" value="2026-11-30"></div>
-      </div>
-      <button onclick="runCreateContract()">Crear contrato</button>
-      <button class="ghost" onclick="runGetContract()">Consultar</button>
-      <h3 style="margin-top:12px">Editar (reprogramar vencimiento)</h3>
-      <div class="row">
-        <div class="field" style="flex:1"><label>Contrato id</label><input id="edtId"></div>
-        <div class="field" style="flex:1"><label>Nueva fecha vence</label><input id="edtDue" type="date" value="2026-12-31"></div>
-      </div>
-      <button class="ghost" onclick="runReschedule()">Editar due_date</button>
-    </div>
-
-    <div class="card view" id="view-lifecycle" style="display:none">
-      <h2>4 &middot; Ciclo de vida</h2>
-      <div class="field"><label>Contrato id</label><input id="lifeId"></div>
+    <div class="card view" id="view-lifecycle">
+      <h2>Ciclo de vida</h2>
+      <div class="field"><label>Contrato</label><input id="lifeId" placeholder="id del contrato"></div>
       <div class="row">
         <button onclick="runSuspend()">Suspender</button>
         <button onclick="runReactivate()">Reactivar</button>
       </div>
-      <div class="hint">Suspender a&ntilde;ade la IP a la lista <code>suspended</code> del router (bloqueo real); reactivar la quita.</div>
+      <div class="hint">Bloquea o desbloquea el servicio del usuario.</div>
     </div>
 
-    <div class="card view" id="view-payments" style="display:none">
-      <h2>5 &middot; Pagos</h2>
-      <div class="field"><label>Contrato id</label><input id="payId"></div>
+    <div class="card view" id="view-payments">
+      <h2>Pagos</h2>
+      <div class="field"><label>Contrato</label><input id="payId" placeholder="id del contrato"></div>
       <div class="row">
-        <div class="field" style="flex:1"><label>Importe (céntimos)</label><input id="payAmount" type="number" value="15000"></div>
-        <div class="field" style="flex:1"><label>Pagado el</label><input id="payOn" type="date"></div>
+        <div class="field" style="flex:1"><label>Importe (€)</label><input id="payAmount" type="number" value="15000"></div>
+        <div class="field" style="flex:1"><label>Fecha de pago</label><input id="payOn" type="date"></div>
       </div>
       <button onclick="runRegisterPayment()">Registrar pago</button>
-      <button class="ghost" onclick="runRepeatPayment()">Repetir pago (idempotencia)</button>
-      <div class="hint">Si el contrato est&aacute; suspendido y queda saldado, se <b>reactiva solo</b> y el router lo desbloquea. Repetir el mismo pago no duplica cr&eacute;dito.</div>
+      <button class="ghost" onclick="runRepeatPayment()">Repetir pago</button>
+      <div class="hint">Si un contrato suspendido queda saldado, se reactiva automáticamente.</div>
     </div>
 
-    <div class="card view" id="view-speed" style="display:none">
-      <h2>6 &middot; Perfil de velocidad</h2>
-      <div class="field"><label>Contrato id</label><input id="spdId"></div>
+    <div class="card view" id="view-speed">
+      <h2>Perfil de velocidad</h2>
+      <div class="field"><label>Contrato</label><input id="spdId" placeholder="id del contrato"></div>
       <div class="row">
         <div class="field" style="flex:1"><label>Bajada Mbps</label><input id="spdDown" type="number" value="600"></div>
         <div class="field" style="flex:1"><label>Subida Mbps</label><input id="spdUp" type="number" value="300"></div>
       </div>
       <button onclick="runSpeedProfile()">Cambiar perfil</button>
-      <div class="hint">Aplica en MikroTik un <code>queue/simple</code> con <code>max-limit</code> real.</div>
+      <div class="hint">Cambia la velocidad de navegación del usuario.</div>
     </div>
 
-    <div class="card view" id="view-auto" style="display:none">
-      <h2>7 &middot; Automático</h2>
+    <div class="card view" id="view-auto">
+      <h2>Automático</h2>
       <p style="margin:0 0 10px;font-size:13px;color:var(--muted)">
-        Suspende autom&aacute;ticamente todo contrato con <b>vencimiento pasado sin pago</b>.
+        Suspende automáticamente todo contrato con vencimiento pasado sin pago.
       </p>
-      <button onclick="runSweep()">Ejecutar sweep de vencidos</button>
-      <div class="hint">El servidor tambi&eacute;n lo ejecuta solo cada <code>SWEEP_INTERVAL_MS</code> (por defecto 60&nbsp;s).</div>
+      <button onclick="runSweep()">Revisar vencidos</button>
     </div>
 
-    <div class="card view" id="view-inventory" style="display:none">
-      <h2>8 &middot; Inventario de usuarios <span class="badge" id="invCount">0</span></h2>
+    <div class="card view" id="view-inventory">
+      <h2>Inventario <span class="badge" id="invCount">0</span></h2>
       <div class="scroll">
         <table class="inv">
-          <thead><tr><th>Nombre</th><th>IP est&aacute;tica</th><th>Id</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>IP estática</th><th>Id</th></tr></thead>
           <tbody id="invBody"><tr><td colspan="3" style="color:var(--muted)">(cargando &hellip;)</td></tr></tbody>
         </table>
       </div>
-      <button class="ghost" onclick="runRefreshInventory()" style="margin-top:8px">Actualizar inventario</button>
-      <div class="hint">Todos los usuarios registrados, listos para operar.</div>
+      <button class="ghost" onclick="runRefreshInventory()" style="margin-top:8px">Actualizar</button>
     </div>
 
-    <div class="card view" id="view-audit" style="display:none">
-      <h2>9 &middot; Auditor&iacute;a de cambios</h2>
+    <div class="card view" id="view-audit">
+      <h2>Auditoría</h2>
       <div class="row">
-        <div class="field" style="flex:1"><label>L&iacute;mite</label><input id="auditLimit" type="number" value="25" min="1" max="500"></div>
+        <div class="field" style="flex:1"><label>Límite</label><input id="auditLimit" type="number" value="25" min="1" max="500"></div>
         <button class="ghost" onclick="runRefreshAudit()">Ver cambios</button>
       </div>
       <div class="scroll">
         <table class="inv">
-          <thead><tr><th>Cu&aacute;ndo</th><th>Autor</th><th>Op</th><th>Ruta</th><th>Detalle</th></tr></thead>
-          <tbody id="auditBody"><tr><td colspan="5" style="color:var(--muted)">(pulsa &laquo;Ver cambios&raquo;)</td></tr></tbody>
+          <thead><tr><th>Fecha</th><th>Operador</th><th>Acción</th></tr></thead>
+          <tbody id="auditBody"><tr><td colspan="3" style="color:var(--muted)">(pulsa «Ver cambios»)</td></tr></tbody>
         </table>
       </div>
-      <div class="hint">Registro de cada modificaci&oacute;n (quien, qu&eacute;, cu&aacute;ndo) persistido en PostgreSQL.</div>
     </div>
   </section>
-
-  <aside class="side">
-    <div class="card">
-      <h2>Objetos actuales</h2>
-      <div class="ids" id="idBar">(crea un suscriptor, un plan y un contrato)</div>
-      <div class="hint">Los ids se rellenan solos al crear; puedes pegarlos manualmente.</div>
-    </div>
-  </aside>
   </div>
 </main>
 
 <script>
 "use strict";
-const idBar = document.getElementById("idBar");
 const ids = { subscriber: "", plan: "", contract: "" };
 
 const STORAGE_TOKEN_KEY = "inerxia_token";
@@ -273,23 +250,18 @@ function setView(authed, username) {
   const landing = document.getElementById("landing");
   const platform = document.getElementById("platform");
   const topbar = document.getElementById("topbar");
-  const pill = document.getElementById("userPill");
   const logoutBtn = document.getElementById("logoutBtn");
   if (authed) {
     landing.style.display = "none";
     platform.style.display = "";
     topbar.style.display = "";
-    pill.className = "pill ok";
-    pill.textContent = "operador: " + (username || "?");
     logoutBtn.style.display = "";
-    switchView("view-subscriber");
+    switchView("view-client");
     runRefreshInventory();
   } else {
     landing.style.display = "";
     platform.style.display = "none";
     topbar.style.display = "none";
-    pill.className = "pill";
-    pill.textContent = "sin sesi&oacute;n";
     logoutBtn.style.display = "none";
   }
 }
@@ -298,9 +270,9 @@ function setLandingMode(mode) {
   const isLogin = mode === "login";
   document.getElementById("passWrap2").style.display = isLogin ? "none" : "";
   document.getElementById("landPass").autocomplete = isLogin ? "current-password" : "new-password";
-  document.getElementById("landSubmit").textContent = isLogin ? "Iniciar sesi&oacute;n" : "Crear cuenta";
+  document.getElementById("landSubmit").textContent = isLogin ? "Iniciar sesión" : "Crear cuenta";
   document.getElementById("landSubmit").onclick = isLogin ? runLogin : runRegister;
-  document.getElementById("landToggle").textContent = isLogin ? "&iquest;No tienes una cuenta? Crea una" : "&iquest;Ya tienes una cuenta? Inicia sesi&oacute;n";
+  document.getElementById("landToggle").textContent = isLogin ? "¿No tienes una cuenta? Crea una" : "¿Ya tienes una cuenta? Inicia sesión";
   setLandMsg("");
 }
 
@@ -312,9 +284,9 @@ function setLandMsg(text) {
 
 function landingError(r) {
   if (r.status === 409 || r.status === 422 || r.status === 401) {
-    return (r.data && r.data.message) || "Operaci&oacute;n rechazada.";
+    return (r.data && r.data.message) || "Operación rechazada.";
   }
-  return "Error " + r.status + ": no se pudo completar la operaci&oacute;n.";
+  return "Error " + r.status + ": no se pudo completar la operación.";
 }
 
 function adoptSession(username, password) {
@@ -326,12 +298,12 @@ const runRegister = handle(async () => {
   const username = el("landUser");
   const password = document.getElementById("landPass").value;
   if (!username || !password) {
-    setLandMsg("Introduce usuario y contrase&ntilde;a.");
+    setLandMsg("Introduce usuario y contraseña.");
     return;
   }
   const registered = await api("POST", "/api/auth/register", { username, password });
   if (registered.ok && registered.data && registered.data.username) {
-    setLandMsg("Cuenta creada; entrando&hellip;");
+    setLandMsg("Cuenta creada; entrando…");
     await adoptSession(registered.data.username, password);
   } else {
     setLandMsg(landingError(registered));
@@ -346,15 +318,21 @@ function switchView(name) {
   document.querySelectorAll("#platform .view").forEach(function (card) {
     card.style.display = card.id === name ? "" : "none";
   });
-  document.querySelectorAll("#viewTabs .tab").forEach(function (btn) {
+  document.querySelectorAll("#viewNav .navlink").forEach(function (btn) {
     btn.classList.toggle("active", btn.dataset.view === name);
   });
 }
 
+let statusTimer = null;
 function status(text, ok) {
   const box = document.getElementById("status");
   box.textContent = text;
-  box.className = "status" + (ok ? " ok" : ok === false ? " err" : "");
+  box.className = "";
+  box.classList.add("show");
+  if (ok) box.classList.add("ok");
+  else if (ok === false) box.classList.add("err");
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(function () { box.classList.remove("show"); }, 2000);
 }
 
 async function api(method, path, body) {
@@ -367,11 +345,10 @@ async function api(method, path, body) {
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  status(method + " " + path + " -> " + res.status, res.ok);
   if (res.status === 401 && token) {
     token = "";
     localStorage.removeItem(STORAGE_TOKEN_KEY);
-    status("Tu sesi&oacute;n caduc&oacute;; vuelve a entrar.", false);
+    status("Tu sesión caducó; vuelve a entrar.", false);
     setView(false);
   }
   return { status: res.status, ok: res.ok, data };
@@ -391,7 +368,7 @@ const runLogin = handle(async () => {
   const username = el("landUser");
   const password = document.getElementById("landPass").value;
   if (!username || !password) {
-    setLandMsg("Introduce usuario y contrase&ntilde;a.");
+    setLandMsg("Introduce usuario y contraseña.");
     return;
   }
   const r = await api("POST", "/api/auth/login", { username, password });
@@ -429,102 +406,123 @@ function handle(fn) {
   };
 }
 
-function setIds() {
-  idBar.innerHTML =
-    '<div><span>subscriptor </span><code>' + (ids.subscriber || "-") + "</code></div>" +
-    '<div><span>plan </span><code>' + (ids.plan || "-") + "</code></div>" +
-    '<div><span>contrato </span><code>' + (ids.contract || "-") + "</code></div>";
+const runCreateClient = handle(async () => {
+  const sub = await api("POST", "/api/subscribers", { name: el("cliName"), static_ip: el("cliIp") });
+  if (!sub.ok) { status("No se pudo crear el suscriptor.", false); return; }
+  ids.subscriber = sub.data.id;
+  const plan = await api("POST", "/api/plans", {
+    name: el("cliPlanName"),
+    download_mbps: +el("cliDown"),
+    upload_mbps: +el("cliUp"),
+    monthly_price_cents: +el("cliPrice")
+  });
+  if (!plan.ok) { status("No se pudo crear el plan.", false); return; }
+  ids.plan = plan.data.id;
+  const ctr = await api("POST", "/api/contracts", {
+    subscriber_id: ids.subscriber,
+    plan_id: ids.plan,
+    billing_start: el("cliStart"),
+    due_date: el("cliDue")
+  });
+  if (!ctr.ok) { status("No se pudo crear el contrato.", false); return; }
+  ids.contract = ctr.data.id;
+  ["edtId", "lifeId", "payId", "spdId"].forEach(function (i) {
+    document.getElementById(i).value = ids.contract;
+  });
+  await refreshContractTable(ids.contract);
+  status("Cliente creado: suscriptor, plan y contrato.", true);
+  runRefreshInventory();
+});
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+  });
+}
+function money(cents) { return (cents / 100).toFixed(2).replace(".", ",") + " €"; }
+function fecha(iso) { return iso ? iso.split("-").reverse().join("/") : ""; }
+function estatus(s) {
+  return s === "active" ? "Activo" : s === "suspended" ? "Suspendido" : "Vencido";
 }
 
-const runCreateSubscriber = handle(async () => {
-  const r = await api("POST", "/api/subscribers", { name: el("subName"), static_ip: el("subIp") });
-  if (r.ok) {
-    ids.subscriber = r.data.id;
-    document.getElementById("ctrSub").value = ids.subscriber;
-    setIds();
+async function refreshContractTable(id) {
+  const box = document.getElementById("ctrInfo");
+  const input = document.getElementById("edtId");
+  if (input) input.value = id;
+  ids.contract = id;
+  const c = await api("GET", "/api/contracts/" + id);
+  if (!c.ok) {
+    box.innerHTML = '<div style="padding:10px;font-size:12px;color:var(--err)">No se encontró el contrato.</div>';
+    return;
   }
-});
-
-const runCreatePlan = handle(async () => {
-  const r = await api("POST", "/api/plans", {
-    name: el("planName"),
-    download_mbps: +el("planDown"),
-    upload_mbps: +el("planUp"),
-    monthly_price_cents: +el("planPrice")
-  });
-  if (r.ok) {
-    ids.plan = r.data.id;
-    document.getElementById("ctrPlan").value = ids.plan;
-    setIds();
+  const d = c.data;
+  let info = "";
+  const s = await api("GET", "/api/subscribers/" + d.subscriber_id);
+  if (s.ok && s.data) {
+    info += "<tr><td>Cliente</td><td>" + esc(s.data.name) + "</td></tr>" +
+      "<tr><td>IP estática</td><td class=\"mono\">" + esc(s.data.static_ip) + "</td></tr>";
   }
-});
-
-const runCreateContract = handle(async () => {
-  const r = await api("POST", "/api/contracts", {
-    subscriber_id: el("ctrSub") || ids.subscriber,
-    plan_id: el("ctrPlan") || ids.plan,
-    billing_start: el("ctrStart"),
-    due_date: el("ctrDue")
-  });
-  if (r.ok) {
-    ids.contract = r.data.id;
-    ["edtId", "lifeId", "payId", "spdId"].forEach(function (i) {
-      document.getElementById(i).value = ids.contract;
-    });
-    setIds();
-    showStatus(r.data);
+  const pl = await api("GET", "/api/plans/" + d.plan_id);
+  if (pl.ok && pl.data) {
+    info += "<tr><td>Plan</td><td>" + esc(pl.data.name) + "</td></tr>";
   }
-});
-
-let statusCard = null;
-function showStatus(d) {
-  if (!statusCard) {
-    statusCard = document.createElement("div");
-    statusCard.className = "card";
-    statusCard.innerHTML = "<h2>Contrato</h2>";
-    document.querySelector(".side").insertBefore(statusCard, document.querySelector(".side").firstChild);
+  let payments = "";
+  if (d.payments && d.payments.length) {
+    payments = d.payments.map(function (p) {
+      return "<tr><td>Pago · " + fecha(p.registered_on) + "</td><td>" + money(p.amount_cents) + "</td></tr>";
+    }).join("");
+  } else {
+    payments = "<tr><td>Pagos</td><td>Sin pagos registrados</td></tr>";
   }
-  const label = d.status === "active" ? "activo" : d.status === "suspended" ? "suspendido" : "vencido";
-  const cls = d.status === "active" ? "active" : d.status === "suspended" ? "suspended" : "overdue";
-  statusCard.innerHTML = "<h2>Contrato</h2><p>estado: <span class=\"badge " + cls + "\">" + label +
-    "</span></p><p>pagos: " + (d.payments ? d.payments.length : 0) + "</p><p>megas: " +
-    (d.download_mbps || "?") + "/" + (d.upload_mbps || "?") + "</p>";
+  box.innerHTML = "<table class=\"inv\">" +
+    "<tr><td>Contrato</td><td class=\"mono\">" + esc(d.id) + "</td></tr>" +
+    info +
+    "<tr><td>Velocidad</td><td>" + d.download_mbps + "/" + d.upload_mbps + " Mbps</td></tr>" +
+    "<tr><td>Precio mensual</td><td>" + money(d.price_per_period_cents) + "</td></tr>" +
+    "<tr><td>Inicio de facturación</td><td>" + fecha(d.billing_start) + "</td></tr>" +
+    "<tr><td>Vencimiento</td><td>" + fecha(d.due_date) + "</td></tr>" +
+    "<tr><td>Estado</td><td>" + estatus(d.status) + "</td></tr>" +
+    payments +
+    "</table>";
 }
 
 const runGetContract = handle(async () => {
   const id = el("edtId") || ids.contract;
-  const r = await api("GET", "/api/contracts/" + id);
-  if (r.ok) {
-    ids.contract = id;
-    setIds();
-    showStatus(r.data);
-  }
+  if (!id) { status("Introduce un id de contrato.", false); return; }
+  await refreshContractTable(id);
 });
 
 const runReschedule = handle(async () => {
   const id = el("edtId") || ids.contract;
+  if (!id) { status("Introduce un id de contrato.", false); return; }
   const r = await api("PUT", "/api/contracts/" + id, { due_date: el("edtDue") });
-  if (r.ok) showStatus(r.data);
+  if (r.ok) {
+    status("Vencimiento actualizado.", true);
+    await refreshContractTable(id);
+  }
 });
 
 const runSuspend = handle(async () => {
   const id = el("lifeId") || ids.contract;
+  if (!id) { status("Indica el contrato.", false); return; }
   const r = await api("POST", "/api/contracts/" + id + "/suspend", {});
-  if (r.ok) showStatus(r.data);
+  if (r.ok) status("Contrato suspendido.", true);
 });
 
 const runReactivate = handle(async () => {
   const id = el("lifeId") || ids.contract;
+  if (!id) { status("Indica el contrato.", false); return; }
   const r = await api("POST", "/api/contracts/" + id + "/reactivate", {});
-  if (r.ok) showStatus(r.data);
+  if (r.ok) status("Contrato reactivado.", true);
 });
 
 let lastPayment = null;
 const runRegisterPayment = handle(async () => {
   const id = el("payId") || ids.contract;
+  if (!id) { status("Indica el contrato.", false); return; }
   lastPayment = { amount_cents: +el("payAmount"), paid_on: el("payOn") || today() };
   const r = await api("POST", "/api/contracts/" + id + "/payments", lastPayment);
-  if (r.ok) showStatus(r.data);
+  if (r.ok) status("Pago registrado.", true);
 });
 
 const runRepeatPayment = handle(async () => {
@@ -534,23 +532,25 @@ const runRepeatPayment = handle(async () => {
     return;
   }
   const r = await api("POST", "/api/contracts/" + id + "/payments", lastPayment);
-  if (r.ok) {
-    status("Pago id&eacute;ntico devuelto sin duplicar cr&eacute;dito (idempotente por contenido).", true);
-    showStatus(r.data);
-  }
+  if (r.ok) status("Pago duplicado ignorado (no se vuelve a cobrar).", true);
 });
 
 const runSpeedProfile = handle(async () => {
   const id = el("spdId") || ids.contract;
-  await api("PATCH", "/api/contracts/" + id + "/speed-profile", {
+  if (!id) { status("Indica el contrato.", false); return; }
+  const r = await api("PATCH", "/api/contracts/" + id + "/speed-profile", {
     download_mbps: +el("spdDown"),
     upload_mbps: +el("spdUp")
   });
+  if (r.ok) status("Perfil de velocidad actualizado.", true);
 });
 
 const runSweep = handle(async () => {
   const r = await api("POST", "/api/sweep/expired", {});
-  if (r.ok) status("Sweep completado: " + JSON.stringify(r.data), true);
+  if (r.ok) {
+    status("Revisión completada: " + (r.data.reactivated || 0) + " reactivados y " +
+      (r.data.suspended || 0) + " suspendidos.", true);
+  }
 });
 
 const runRefreshInventory = handle(async () => {
@@ -572,29 +572,52 @@ const runRefreshInventory = handle(async () => {
   }).join("");
 });
 
+function auditAction(e) {
+  const p = (e.path || "").replace(/^\/api/, "");
+  if (p === "/auth/register") return "Registro de operador";
+  if (p === "/auth/login") return "Inicio de sesión";
+  if (p === "/auth/logout") return "Cierre de sesión";
+  if (p === "/sweep/expired") return "Revisión de vencidos";
+  if (/\/contracts\/[^/]+\/suspend$/.test(p)) return "Suspensión de contrato";
+  if (/\/contracts\/[^/]+\/reactivate$/.test(p)) return "Reactivación de contrato";
+  if (/\/contracts\/[^/]+\/speed-profile$/.test(p)) return "Cambio de perfil de velocidad";
+  if (/\/contracts\/[^/]+\/payments$/.test(p)) return "Registro de pago";
+  if (/^\/contracts(\/[^/]+)?$/.test(p)) {
+    if (e.method === "POST") return "Creación de contrato";
+    if (e.method === "PUT") return "Cambio de vencimiento";
+    return "Consulta de contrato";
+  }
+  if (/^\/subscribers(\/[^/]+)?$/.test(p)) {
+    if (e.method === "POST") return "Alta de cliente";
+    return "Consulta de cliente";
+  }
+  if (/^\/plans(\/[^/]+)?$/.test(p)) {
+    if (e.method === "POST") return "Creación de plan";
+    return "Consulta de plan";
+  }
+  return (e.detail || "Operación").slice(0, 60);
+}
+
 const runRefreshAudit = handle(async () => {
   const limit = Math.max(1, Math.min(500, +el("auditLimit") || 25));
   const r = await api("GET", "/api/audit?limit=" + limit);
   const body = document.getElementById("auditBody");
   if (!r.ok || !Array.isArray(r.data)) {
-    body.innerHTML = '<tr><td colspan="5" style="color:var(--err)">no disponible</td></tr>';
+    body.innerHTML = '<tr><td colspan="3" style="color:var(--err)">no disponible</td></tr>';
     return;
   }
   if (r.data.length === 0) {
-    body.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">(todav&iacute;a no hay cambios registrados)</td></tr>';
+    body.innerHTML = '<tr><td colspan="3" style="color:var(--muted)">(todavía no hay cambios registrados)</td></tr>';
     return;
   }
   body.innerHTML = r.data.map(function (e) {
-    const st = e.status >= 200 && e.status < 300 ? "ok" : "err";
-    return "<tr><td class=\"mono\">" + (e.occurred_at || "").slice(0, 19) +
+    return "<tr><td class=\"mono\">" + (e.occurred_at || "").slice(0, 19).replace("T", " ") +
       "</td><td>" + (e.actor || "?") +
-      "</td><td>" + e.method + "&nbsp;<span class=\"" + st + "\">" + e.status +
-      "</span></td><td class=\"mono\">" + e.path +
-      "</td><td>" + (e.detail || "") + "</td></tr>";
+      "</td><td>" + auditAction(e) + "</td></tr>";
   }).join("");
 });
 
-setIds();
+switchView("view-client");
 setView(false);
 restoreSession();
 </script>
