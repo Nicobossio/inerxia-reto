@@ -12,6 +12,8 @@
 # Defaults point at the local lab (scripts/lab/run-routeros.sh).
 set -uo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
 BASE="${API_BASE_URL:-http://127.0.0.1:8484}"
 RT="${MIKROTIK_BASE_URL:-http://127.0.0.1:8080/rest}"
 RT_USER="${MIKROTIK_USER:-lab-admin}"
@@ -58,7 +60,7 @@ start_server() {
     export PGUSER=${PGUSER:-inerxia} PGPASSWORD=${PGPASSWORD:-inerxia_secret}
     export PGDATABASE=${PGDATABASE:-inerxia} SWEEP_INTERVAL_MS=0
     export MIKROTIK_BASE_URL="$RT" MIKROTIK_USER="$RT_USER" MIKROTIK_PASSWORD="$RT_PASS"
-    ./build/src/api/inerxia_server >/tmp/inerxia-demo-server.log 2>&1 &
+    "$ROOT/build/src/api/inerxia_server" >/tmp/inerxia-demo-server.log 2>&1 &
     SRV=$!
     for _ in $(seq 1 50); do
         curl -sf "$BASE/api/health" >/dev/null && return 0
