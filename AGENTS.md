@@ -105,6 +105,9 @@ Before writing implementation code:
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
 
+# One-command local stack (PostgreSQL + router lab + API + demo user)
+./scripts/run-inerxia.sh start|status|logs|stop
+
 # Run tests by label (adjust once targets exist)
 ctest --test-dir build -L unit
 ctest --test-dir build -L integration

@@ -11,6 +11,29 @@ Windows (WSL2 o nativo) y macOS, incluyendo PostgreSQL, el router MikroTik
 - [`docs/API.md`](API.md): referencia completa de la API HTTP.
 - [`docs/INTEGRACION.md`](INTEGRACION.md): cómo se integraron todas las piezas.
 
+## 0. Arranque rápido (un solo comando)
+
+Ya compilado, con PostgreSQL y el lab MikroTik disponibles, **todo el stack
+se levanta con un comando**:
+
+```bash
+./scripts/run-inerxia.sh start    # PostgreSQL + router + API + usuario demo (idempotente)
+./scripts/run-inerxia.sh status   # estado de las piezas
+./scripts/run-inerxia.sh logs     # seguir el log del servidor
+./scripts/run-inerxia.sh stop     # apaga API, router y PostgreSQL
+```
+
+Al terminar `start`:
+
+- Dashboard: `http://inerxia.local:8484/ui` (o `http://127.0.0.1:8484/ui`)
+- **Usuario: `demo` · Contraseña: `demo2026`** (el script lo crea si no existe).
+
+El script arranca PostgreSQL si está apagado (data dir `~/.cache/inerxia-pg/data`),
+levanta el router CHR vía `scripts/lab/run-routeros.sh`, inicia el servidor con
+las variables de entorno correctas y garantiza la sesión `demo`. Es operativo,
+no lógica de negocio; todas las variables son sobrescribibles por entorno
+(`PGDATA`, `PGUSER`, `PGPASSWORD`, `MIKROTIK_*`, `CANONICAL_DOMAIN`, …).
+
 ## 1. Qué trae el proyecto
 
 | Pieza | Cómo se ejecuta |

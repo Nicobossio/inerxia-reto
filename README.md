@@ -18,7 +18,15 @@ integrada con RouterOS. C++20, hexagonal/DDD, PostgreSQL, cpp-httplib.
 ## Arranque rápido
 
 ```bash
-cmake -S . -B build && cmake --build build -j
+cmake -S . -B build && cmake --build build -j        # solo primera vez / tras cambios
+./scripts/run-inerxia.sh start                       # levanta todo + usuario demo
+```
+
+Sigue las instrucciones de `scripts/` y abre el dashboard en
+`http://inerxia.local:8484/ui` con **`demo` / `demo2026`**. Sin ese script, la
+secuencia manual es:
+
+```bash
 scripts/lab/run-routeros.sh bootstrap && scripts/lab/run-routeros.sh start
 scripts/lab/provision-routeros.sh
 export PGUSER=inerxia PGPASSWORD=CHANGE_ME PGDATABASE=inerxia
