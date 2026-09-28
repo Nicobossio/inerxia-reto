@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Inerxia: compilar",
+      "type": "shell",
+      "command": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build -j",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Inerxia: arrancar todo",
+      "type": "shell",
+      "command": "./scripts/run-inerxia.sh start",
+      "problemMatcher": []
+    },
+    {
+      "label": "Inerxia: estado",
+      "type": "shell",
+      "command": "./scripts/run-inerxia.sh status",
+      "problemMatcher": []
+    },
+    {
+      "label": "Inerxia: logs",
+      "type": "shell",
+      "command": "./scripts/run-inerxia.sh logs",
+      "problemMatcher": []
+    },
+    {
+      "label": "Inerxia: apagar todo",
+      "type": "shell",
+      "command": "./scripts/run-inerxia.sh stop",
+      "problemMatcher": []
+    }
+  ]
+}

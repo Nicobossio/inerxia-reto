@@ -97,10 +97,84 @@ cmake --build build -j
       proyecto).
     - `nat`: arranca el servidor con `API_HOST=0.0.0.0` para que Windows llegue
       por `localhost:8484`.
-- **Nativo (avanzado)**: con MSYS2/Mingw-w64 (packages `mingw-w64-ucrt-x86_64`
-  de gcc, cmake, openssl, libpq, libcurl) o MSVC 2022 + CMake. La compilación
-  nativa de libpq/libcurl/OpenSSL es engorrosa; solo se recomienda si no se
-  puede usar WSL.
+- **Nativo (cmd, sin WSL) — vía vcpkg**. El código fuente es portable (no usa
+  POSIX y el `CMakeLists.txt` raíz ya contempla MSVC); las dependencias nativas
+  (OpenSSL, libpq, libcurl) se traen con **vcpkg**. El repo incluye
+  `vcpkg.json`, `scripts\build-windows.cmd` y `scripts\run-inerxia.cmd`:
+
+  Prerequisitos en el PC (instalar una vez):
+  ```bat
+  :: Git for Windows, CMake >= 3.20 y Visual Studio 2022 Build Tools
+  :: con el workload "Desarrollo para escritorio con C++" (MSVC + Windows SDK)
+  ```
+
+  Compilar y arrancar, todo desde cmd:
+  ```bat
+  cd inerxia-reto
+  scripts\build-windows.cmd        REM vcpkg + cmake + build -> build-vs\...\inerxia_server.exe
+  scripts\run-inerxia.cmd start    REM arranca servidor + usuario demo
+  scripts\run-inerxia.cmd status   REM /api/health
+  scripts\run-inerxia.cmd hosts    REM comprueba inerxia.local en el fichero hosts
+  scripts\run-inerxia.cmd stop     REM detiene el servidor
+  ```
+
+  Notas de la vía nativa:
+  - **PostgreSQL** debe estar instalado y corriendo en el PC (instalador EDB,
+    servicio `postgresql-x64-*`, puerto 5432) con role `inerxia` y base
+    `inerxia` (§4-A), o contenedor vía Docker Desktop.
+  - **Router**: apunta `MIKROTIK_BASE_URL` a un RouterOS real de tu red. El lab
+    QEMU/CHR (`scripts/lab/`) es de Linux/WSL; en Windows nativo corre mejor
+    desde WSL o Docker en la misma máquina (escucha en `127.0.0.1:8080` y
+    Windows llega por `localhost`).
+  - Visual Studio puede abrir el CMake directamente o usar los `.cmd`; las
+    variables se definen dentro de `run-inerxia.cmd` y son sobrescribibles.
+
+### 2.5 Visual Studio Code (replicar en otro PC)
+
+Flujo recomendado: **VS Code + extensión "Remote - WSL"** -> abrir el repo
+dentro de WSL -> comandos/tareas. El repo ya incluye `.vscode/tasks.json`
+(tareas "Inerxia: compilar / arrancar todo / estado / logs / apagar todo") y
+`.vscode/extensions.json` (VS Code ofrece instalar las extensiones necesarias
+al abrir la carpeta).
+
+**En el PC nuevo, desde cero:**
+
+```bash
+# 0) En Windows (PowerShell, una vez):
+wsl --install -d Ubuntu
+#    Instala VS Code y la extensión "Remote - WSL":
+#    code --install-extension ms-vscode-remote.remote-wsl
+
+# 1) Dentro de WSL/Ubuntu: dependencias
+sudo apt update
+sudo apt install -y build-essential cmake pkg-config \
+    libssl-dev libcurl4-openssl-dev libpq-dev postgresql
+
+# 2) Traer el proyecto
+git clone <repositorio> inerxia-reto && cd inerxia-reto
+
+# 3) Compilar y arrancar
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build -j
+./scripts/run-inerxia.sh start
+```
+
+El script `run-inerxia.sh` es **portable**: detecta PostgreSQL con `pg_isready`
+(da igual si es servicio del sistema o `docker compose up -d`), arranca el lab
+CHR descargando QEMU+bootstrap la primera vez, inicia el API y crea el usuario
+`demo`. Solo necesitas provisionar el **role y la base** en PostgreSQL la
+primera vez (ver §4-A) o usar Docker (§4-B).
+
+**Dentro de VS Code:**
+1. Extensión → conecta a WSL ("Remote Explorer" -> Ubuntu) y abre la carpeta
+   `inerxia-reto`.
+2. Terminal integrada (ya es bash de WSL) → `cmake --build build -j` (o menú
+   Terminal → Run Task → "Inerxia: compilar").
+3. Terminal → Run Task → **"Inerxia: arrancar todo"**.
+4. Abre `http://inerxia.local:8484/ui` (usuario **demo** / **demo2026**).
+
+> El repo reside en `/mnt/c/...` dentro de WSL: compila bien, aunque más lento
+> que en el filesystem propio de WSL. Si el build va lento, clónalo en
+> `~/inerxia-reto` en su lugar.
 
 ## 3. Compilación genérica (todas las plataformas)
 
@@ -116,6 +190,7 @@ Resultado: `build/src/api/inerxia_server`.
 
 ### Opción A — PostgreSQL nativo
 
+**Linux / WSL**:
 ```bash
 sudo -u postgres psql <<'SQL'
 CREATE ROLE inerxia LOGIN PASSWORD 'cambia-esto';
@@ -123,6 +198,16 @@ CREATE DATABASE inerxia OWNER inerxia;
 SQL
 # Opcional: la base de tests (solo la usan las pruebas de integración)
 sudo -u postgres psql -d inerxia -f deploy/postgres/init/01-create-test-database.sql
+```
+
+**Windows nativo** (instalador EDB: `postgresql-16.x-windows-x64.exe`, servicio
+`postgresql-x64-16` ya en marcha). Crea role y base desde **cmd**:
+```bat
+set PGPASSWORD=<password-postgres-admin>
+"C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -h 127.0.0.1 -c ^
+  "CREATE ROLE inerxia LOGIN PASSWORD 'cambia-esto';"
+"C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -h 127.0.0.1 -c ^
+  "CREATE DATABASE inerxia OWNER inerxia;"
 ```
 
 Las tablas se crean solas al arrancar el servidor (migraciones v1–v4,

@@ -108,6 +108,10 @@ cmake --build build
 # One-command local stack (PostgreSQL + router lab + API + demo user)
 ./scripts/run-inerxia.sh start|status|logs|stop
 
+# Native Windows (cmd, no WSL): vcpkg deps + MSVC build + run
+scripts/build-windows.cmd
+scripts/run-inerxia.cmd start|status|hosts|stop
+
 # Run tests by label (adjust once targets exist)
 ctest --test-dir build -L unit
 ctest --test-dir build -L integration

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "inerxia",
+  "version": "0.1.0",
+  "description": "ISP billing and service management with MikroTik integration (native Windows via vcpkg)",
+  "dependencies": [
+    "openssl",
+    "libpq",
+    "curl"
+  ]
+}

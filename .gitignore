@@ -1,10 +1,19 @@
 # Build
 build/
+build-vs/
 cmake-build-*/
 out/
 
+# vcpkg (native Windows deps) — cloned/installed locally, never committed
+vcpkg/
+vcpkg_installed/
+installed/
+
 # IDE / tooling
-.vscode/
+.vscode/*
+# ... pero los helpers de proyecto SÍ se versionan:
+!.vscode/tasks.json
+!.vscode/extensions.json
 .idea/
 .cache/
 compile_commands.json

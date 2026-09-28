@@ -22,6 +22,13 @@ cmake -S . -B build && cmake --build build -j        # solo primera vez / tras c
 ./scripts/run-inerxia.sh start                       # levanta todo + usuario demo
 ```
 
+**Windows nativo (cmd, sin WSL):**
+
+```bat
+scripts\build-windows.cmd     REM vcpkg + MSVC -> build-vs\...\inerxia_server.exe
+scripts\run-inerxia.cmd start REM levanta el servidor + usuario demo
+```
+
 Sigue las instrucciones de `scripts/` y abre el dashboard en
 `http://inerxia.local:8484/ui` con **`demo` / `demo2026`**. Sin ese script, la
 secuencia manual es:

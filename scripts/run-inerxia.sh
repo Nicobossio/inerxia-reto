@@ -33,24 +33,38 @@ LOG_FILE="${LOG_FILE:-/tmp/inerxia-api.log}"
 
 say()  { printf '\033[1m%s\033[0m\n' "$*"; }
 
-db_up() { pg_ctl -D "$PGDATA" status >/dev/null 2>&1; }
+db_up() { pg_isready -h "${PGHOST:-127.0.0.1}" -p "${PGPORT:-5432}" >/dev/null 2>&1; }
 router_up() { "$ROOT/scripts/lab/run-routeros.sh" status >/dev/null 2>&1; }
 server_up() { [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; }
 
 start_pg() {
     say "[postgres] comprobando..."
-    if db_up; then say "[postgres] ya esta en marcha (port 5432)."
-    else
+    if db_up; then say "[postgres] ya responde en $PGDATABASE (port ${PGPORT:-5432})."
+    elif [ -d "$PGDATA" ]; then
         pg_ctl -D "$PGDATA" -l "$PG_LOG" start >/dev/null 2>&1
-        say "[postgres] arrancado."
+        say "[postgres] arrancado desde $PGDATA."
+    elif command -v service >/dev/null 2>&1; then
+        sudo service postgresql start || true
+        say "[postgres] intentado via service (consulta INSTALL.md para crear el role y la DB)."
+    elif command -v systemctl >/dev/null 2>&1; then
+        sudo systemctl start postgresql || true
+        say "[postgres] intentado via systemctl (consulta INSTALL.md para crear el role y la DB)."
+    else
+        say "[postgres] ERROR: PostgreSQL no esta disponible. Consulta docs/INSTALL.md."
     fi
+    for _ in $(seq 1 10); do db_up && break; sleep 1; done
+    if ! db_up; then say "[postgres] ATENCION: no responde. Revisa el servicio."; fi
 }
 
 start_router() {
     say "[router] comprobando lab MikroTik..."
     if router_up; then say "[router] ya en marcha."
     else
-        "$ROOT/scripts/lab/run-routeros.sh" start
+        if ! "$ROOT/scripts/lab/run-routeros.sh" start; then
+            say "[router] primera vez: descargando QEMU + CHR (puede tardar)..."
+            "$ROOT/scripts/lab/run-routeros.sh" bootstrap
+            "$ROOT/scripts/lab/run-routeros.sh" start
+        fi
         "$ROOT/scripts/lab/provision-routeros.sh"
         say "[router] listo (REST en $MIKROTIK_BASE_URL)."
     fi
@@ -104,8 +118,8 @@ cmd_stop() {
     if server_up; then kill -TERM "$(cat "$PID_FILE")"; rm -f "$PID_FILE"; fi
     say "[router] apagando lab..."
     "$ROOT/scripts/lab/run-routeros.sh" stop 2>/dev/null || true
-    say "[postgres] apagando..."
-    pg_ctl -D "$PGDATA" stop -m fast >/dev/null 2>&1 || true
+    say "[postgres] apagando (si lo arrancó el script)..."
+    [ -d "$PGDATA" ] && pg_ctl -D "$PGDATA" stop -m fast >/dev/null 2>&1 || true
     say "Todo apagado."
 }
 
